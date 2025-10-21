@@ -87,26 +87,109 @@
     #ab-wrap {
       pointer-events: auto;
       display: ${COLLAPSED ? 'none' : 'block'};
+      position: relative;
+      overflow: hidden;
       background:
-        linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.015)) ,
-        radial-gradient(120% 150% at 0% 100%, rgba(96,165,250,0.06), transparent 55%) ,
+        radial-gradient(140% 120% at 0% 0%, rgba(96,165,250,0.22), transparent 65%),
+        radial-gradient(120% 130% at 100% 0%, rgba(14,165,233,0.18), transparent 70%),
+        linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015)),
         var(--bg);
-      border: 1px solid var(--brd);
-      border-radius: 14px;
-      padding: 8px 10px;
-      box-shadow: var(--shadow);
+      border: 1px solid color-mix(in srgb, var(--brd) 82%, transparent);
+      border-radius: 16px;
+      padding: 14px 16px 16px;
+      box-shadow: 0 16px 34px rgba(0,0,0,0.32);
       max-width: min(96vw, 1280px);
-      backdrop-filter: saturate(0.9) blur(4px);
+      backdrop-filter: saturate(1.05) blur(5px);
     }
 
-    #ab-topbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
-    #ab-left { display:flex; align-items:center; gap:8px; }
-    #ab-title { color:#eef1f6; font-size:11px; font-weight:700; letter-spacing:.3px; opacity:.9; cursor: pointer; }
-    #ab-status { display:flex; align-items:center; gap:6px; font-size:11px; color:#aeb1b7; }
-    .ab-dot { width:8px; height:8px; border-radius:50%; background:#9ca3af; }
+    #ab-wrap::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0) 48%);
+      opacity: 0.18;
+      pointer-events: none;
+    }
+
+    #ab-topbar,
+    #ab-row { position: relative; z-index: 1; }
+    #ab-toast { z-index: 2; }
+
+    #ab-topbar {
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 14px;
+      padding: 10px 12px;
+      margin-bottom: 12px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, rgba(30,36,50,0.62), rgba(18,22,28,0.48));
+      border: 1px solid rgba(255,255,255,0.08);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 10px 26px rgba(0,0,0,0.32);
+    }
+
+    #ab-topbar::after {
+      content: '';
+      position: absolute;
+      inset: 2px;
+      border-radius: inherit;
+      background: linear-gradient(135deg, rgba(96,165,250,0.28), transparent 60%);
+      opacity: 0.35;
+      pointer-events: none;
+    }
+
+    #ab-left { position: relative; z-index: 1; display:flex; align-items:center; gap:12px; }
+    .ab-heading { display:flex; flex-direction:column; gap:2px; }
+    #ab-title { color:#f5f7fb; font-size:13px; font-weight:700; letter-spacing:.32px; opacity:.96; cursor: pointer; }
+    #ab-tagline { font-size:11px; color:#9fa6b8; letter-spacing:.28px; opacity:.82; }
+    #ab-status {
+      display:flex; align-items:center; gap:6px;
+      font-size:11px; color:#c1c6d4;
+      padding:4px 8px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .ab-dot { width:8px; height:8px; border-radius:50%; background:#9ca3af; box-shadow: 0 0 10px rgba(156,163,175,0.45); }
     .ab-live  { background: var(--green); box-shadow: 0 0 10px color-mix(in srgb, var(--green) 35%, transparent); }
     .ab-warn  { background: #f59e0b;   box-shadow: 0 0 10px rgba(245,158,11,0.30); }
     .ab-dead  { background: var(--red); box-shadow: 0 0 10px color-mix(in srgb, var(--red) 35%, transparent); }
+
+    #ab-right {
+      position: relative;
+      z-index: 1;
+      display:flex;
+      align-items:center;
+      gap:8px;
+      padding:4px 8px;
+      border-radius:10px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+    }
+    #ab-link-label { font-size:11px; color:#d0d5de; letter-spacing:.28px; }
+    #ab-link {
+      pointer-events: auto;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 9px;
+      color: #f0f3fa;
+      text-decoration: none;
+      background: linear-gradient(135deg, rgba(96,165,250,0.42), rgba(14,165,233,0.20));
+      border: 1px solid rgba(96,165,250,0.45);
+      box-shadow: 0 8px 18px rgba(59,130,246,0.25);
+      transition: background .2s ease, border-color .2s ease, transform .18s ease, box-shadow .2s ease;
+    }
+    #ab-link:hover {
+      background: linear-gradient(135deg, rgba(96,165,250,0.52), rgba(14,165,233,0.28));
+      border-color: rgba(96,165,250,0.62);
+      box-shadow: 0 10px 24px rgba(59,130,246,0.32);
+      transform: translateY(-1px);
+    }
+    #ab-link svg { width: 15px; height: 15px; fill: currentColor; }
 
     /* 横向一行 + 滚动 */
     #ab-row {
@@ -188,11 +271,30 @@
     <div id="ab-wrap" role="region" aria-label="Alpha Board 实时看板">
       <div id="ab-topbar">
         <div id="ab-left">
-          <span id="ab-title" title="点击最小化">Alpha Board · 链上实时</span>
+          <div class="ab-heading">
+            <span id="ab-title" title="点击最小化">Alpha Board</span>
+            <span id="ab-tagline">链上实时</span>
+          </div>
           <div id="ab-status" aria-live="polite">
             <span class="ab-dot" id="ab-dot"></span>
             <span id="ab-time">Syncing…</span>
           </div>
+        </div>
+        <div id="ab-right">
+          <span id="ab-link-label">前往 Nof1.ai</span>
+          <a
+            id="ab-link"
+            href="https://nof1.ai"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="打开 Nof1.ai（新窗口）"
+            title="打开 Nof1.ai（新窗口）"
+          >
+            <svg viewBox="0 0 20 20" aria-hidden="true">
+              <path d="M5 4a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 112 0v3a4 4 0 01-4 4H5a4 4 0 01-4-4V6a4 4 0 014-4h3a1 1 0 110 2H5z" />
+              <path d="M9 3a1 1 0 011-1h7a1 1 0 011 1v7a1 1 0 11-2 0V5.414l-8.293 8.293a1 1 0 11-1.414-1.414L14.586 4H10a1 1 0 01-1-1z" />
+            </svg>
+          </a>
         </div>
       </div>
       <div id="ab-row"></div>
