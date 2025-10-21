@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Alpha Board（链上/Small/横排/退避/柔和玻璃）
 // @namespace    https://greasyfork.org/zh-CN/users/alpha-arena
-// @version      0.5.2
-// @description  无记忆 | 默认最小化 | 无外显排名 | 标题一键最小化 | 按模型独立退避(3s→5s→8s→12s) | 仅 Hyperliquid info；横排6卡；更高透明度/更少玻璃态；P&L 绿/红降饱和。
+// @version      0.5.5
+// @description  无记忆 | 默认最小化 | 无外显排名 | 标题一键最小化 | 按模型独立退避(3s→5s→8s→12s) | 仅 Hyperliquid info；横排6卡；轻量玻璃态；P&L 低饱和；卡片含相对更新时间。
 // @match        *://*/*
 // @grant        GM_xmlhttpRequest
 // @grant        GM_addStyle
@@ -48,22 +48,22 @@
       font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI",
                    Roboto,"PingFang SC","Microsoft YaHei","Noto Sans CJK SC", Arial;
       color-scheme: dark;
-      --gap: 6px; --radius: 12px;
-      --pY: 6px; --pX: 8px; --icon: 26px;
-      --fsName: 11px; --fsVal: 14px; --fsSub: 11px;
+      --gap: 8px; --radius: 14px;
+      --pY: 10px; --pX: 12px; --icon: 24px;
+      --fsName: 10px; --fsVal: 13.5px; --fsSub: 11px;
 
-      /* ↓↓↓ 降低玻璃态：整体更通透，blur/saturate 更低 ↓↓↓ */
-      --bg: rgba(16,18,22,0.28);
-      --bg2: rgba(16,18,22,0.16);
-      --card: rgba(28,31,36,0.38);
-      --card-hover: rgba(28,31,36,0.46);
-      --brd: rgba(255,255,255,0.12);
-      --soft: rgba(255,255,255,0.06);
-      --shadow: 0 10px 24px rgba(0,0,0,0.26);
+      /* ↓↓↓ 更低存在感的玻璃态（降低 blur / saturate / 亮度） ↓↓↓ */
+      --bg: rgba(12,14,18,0.26);
+      --bg2: rgba(12,14,18,0.12);
+      --card: rgba(18,21,28,0.28);
+      --card-hover: rgba(26,30,38,0.38);
+      --brd: rgba(255,255,255,0.10);
+      --soft: rgba(255,255,255,0.08);
+      --shadow: 0 12px 30px rgba(0,0,0,0.2);
 
-      /* ↓↓↓ 低饱和版本绿/红（P&L + 状态点 + 闪烁） ↓↓↓ */
-      --green: hsl(142 45% 48% / 1);  /* 较 #22c55e 降饱和、略暗 */
-      --red:   hsl(0   58% 56% / 1);  /* 较 #ef4444 降饱和、略暗 */
+      /* ↓↓↓ 低饱和柔和绿/红（P&L + 状态点 + 闪烁） ↓↓↓ */
+      --green: rgb(204,255,216);
+      --red:   rgb(255,215,213);
       --blue:  #60a5fa;
       --text:  #e6e8ee;
     }
@@ -73,36 +73,36 @@
       pointer-events: auto;
       display: ${COLLAPSED ? 'inline-flex' : 'none'};
       align-items:center; gap:6px;
-      padding:6px 10px; border-radius:12px;
-      background: linear-gradient(180deg, var(--bg), var(--bg2));
-      border:1px solid var(--brd); color:var(--text); font-weight:700; font-size:12px;
-      box-shadow: var(--shadow);
+      padding:5px 9px; border-radius:11px;
+      background: rgba(18,21,28,0.24);
+      border:1px solid rgba(255,255,255,0.10); color:var(--text); font-weight:600; font-size:11px; letter-spacing:.3px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.22);
       cursor: pointer; user-select: none;
-      backdrop-filter: saturate(0.9) blur(4px);
+      backdrop-filter: saturate(0.75) blur(3px);
       transition: background .2s ease, border-color .2s ease, transform .15s ease;
     }
-    #ab-toggle:hover { border-color: rgba(255,255,255,0.18); transform: translateY(-1px); }
+    #ab-toggle:hover { background: rgba(22,25,34,0.32); border-color: rgba(255,255,255,0.16); transform: translateY(-1px); }
 
     /* 面板主体：更透、少 blur、少 saturate */
     #ab-wrap {
       pointer-events: auto;
       display: ${COLLAPSED ? 'none' : 'block'};
       background:
-        linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.015)) ,
-        radial-gradient(120% 150% at 0% 100%, rgba(96,165,250,0.06), transparent 55%) ,
+        linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.008)) ,
+        radial-gradient(140% 160% at 0% 100%, rgba(96,165,250,0.05), transparent 60%) ,
         var(--bg);
-      border: 1px solid var(--brd);
-      border-radius: 14px;
-      padding: 8px 10px;
-      box-shadow: var(--shadow);
+      border: 1px solid rgba(255,255,255,0.09);
+      border-radius: 16px;
+      padding: 10px 12px 12px;
+      box-shadow: 0 16px 36px rgba(0,0,0,0.26);
       max-width: min(96vw, 1280px);
-      backdrop-filter: saturate(0.9) blur(4px);
+      backdrop-filter: saturate(0.75) blur(3px);
     }
 
     #ab-topbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
     #ab-left { display:flex; align-items:center; gap:8px; }
-    #ab-title { color:#eef1f6; font-size:11px; font-weight:700; letter-spacing:.3px; opacity:.9; cursor: pointer; }
-    #ab-status { display:flex; align-items:center; gap:6px; font-size:11px; color:#aeb1b7; }
+    #ab-title { color:#eef1f8; font-size:10.5px; font-weight:700; letter-spacing:.4px; cursor: pointer; text-transform: uppercase; }
+    #ab-status { display:flex; align-items:center; gap:6px; font-size:10px; color:#d3dbea; letter-spacing:.2px; }
     .ab-dot { width:8px; height:8px; border-radius:50%; background:#9ca3af; }
     .ab-live  { background: var(--green); box-shadow: 0 0 10px color-mix(in srgb, var(--green) 35%, transparent); }
     .ab-warn  { background: #f59e0b;   box-shadow: 0 0 10px rgba(245,158,11,0.30); }
@@ -135,39 +135,46 @@
       overflow-x: auto; overflow-y: hidden; scrollbar-width: thin;
       max-width: min(96vw, 1280px);
       position: relative;
+      padding: 2px 2px 6px 0;
     }
     #ab-row::-webkit-scrollbar { height: 6px; }
-    #ab-row::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.16); border-radius: 999px; }
+    #ab-row::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 999px; }
 
     .ab-card {
       flex: 0 0 auto;
-      min-width: 168px; max-width: 220px;
-      position: relative; display:flex; align-items:center; gap:8px;
+      min-width: 176px; max-width: 240px;
+      position: relative; display:flex; align-items:flex-start; gap:10px;
       padding: var(--pY) var(--pX);
-      background: var(--card);
-      border: 1px solid var(--brd);
+      background: linear-gradient(155deg, rgba(255,255,255,0.05), rgba(255,255,255,0));
+      border: 1px solid rgba(255,255,255,0.08);
       border-radius: var(--radius);
-      transition: transform 240ms ease, box-shadow 240ms ease, background 160ms ease, border-color 160ms ease;
+      transition: transform 220ms ease, box-shadow 220ms ease, background 160ms ease, border-color 160ms ease;
       will-change: transform;
+      box-shadow: none;
     }
     .ab-card:hover {
-      background: var(--card-hover);
-      border-color: rgba(255,255,255,0.18);
-      box-shadow: 0 8px 22px rgba(0,0,0,0.28);
+      background: linear-gradient(155deg, rgba(255,255,255,0.1), rgba(255,255,255,0.02));
+      border-color: rgba(255,255,255,0.16);
+      box-shadow: 0 12px 28px rgba(0,0,0,0.28);
+      transform: translateY(-1px);
     }
 
     .ab-icon {
       width: var(--icon); height: var(--icon);
-      border-radius: 8px; display:grid; place-items:center;
-      font-weight:800; font-size:11px; color:#e5e7eb;
-      background: linear-gradient(135deg, rgba(255,255,255,0.10), rgba(255,255,255,0.02));
-      border: 1px solid var(--soft); user-select:none; cursor: pointer;
-      box-shadow: inset 0 0 6px rgba(255,255,255,0.05);
+      border-radius: 9px; display:grid; place-items:center;
+      font-weight:700; font-size:10px; letter-spacing:.5px; color:#f6f8ff;
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.22); user-select:none; cursor: pointer;
+      transition: background 160ms ease, border-color 160ms ease, transform 160ms ease;
     }
-    .ab-body { display:grid; gap:2px; }
-    .ab-name { font-size: var(--fsName); color:#b8bec8; font-weight: 600; letter-spacing:.2px; }
-    .ab-val  { font-size: var(--fsVal);  color:#f3f4f6; font-weight: 800; letter-spacing:.2px; font-variant-numeric: tabular-nums; }
-    .ab-sub  { font-size: var(--fsSub);  color:#9aa4b2; font-variant-numeric: tabular-nums; }
+    .ab-icon:hover { background: rgba(255,255,255,0.16); border-color: rgba(255,255,255,0.26); }
+    .ab-icon:active { transform: scale(0.96); }
+    .ab-body { display:flex; flex-direction:column; gap:4px; min-width:0; }
+    .ab-head { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+    .ab-name { font-size: var(--fsName); color:#f0f3fa; font-weight:600; letter-spacing:.2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .ab-time { font-size:9.5px; color:#dce4f2; letter-spacing:.2px; white-space:nowrap; }
+    .ab-val  { font-size: var(--fsVal);  color:#f2f4f8; font-weight:700; letter-spacing:.3px; font-variant-numeric: tabular-nums; }
+    .ab-sub  { font-size: var(--fsSub);  color:#8f99a9; font-variant-numeric: tabular-nums; }
 
     /* ↓ P&L 低饱和绿/红 */
     .ab-sub .pos { color: color-mix(in srgb, var(--green) 82%, #d1fae5); }
@@ -175,16 +182,16 @@
 
     /* 涨跌闪烁（进一步降低透明度与冲击感） */
     @media (prefers-reduced-motion: no-preference) {
-      .flash-up   { box-shadow: 0 0 0 2px color-mix(in srgb, var(--green) 18%, transparent) inset; }
-      .flash-down { box-shadow: 0 0 0 2px color-mix(in srgb, var(--red)   18%, transparent) inset; }
+      .flash-up   { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--green) 18%, transparent); }
+      .flash-down { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--red)   18%, transparent); }
     }
 
     /* 骨架占位 */
     .skeleton {
-      background: linear-gradient(90deg, rgba(255,255,255,0.06) 25%, rgba(255,255,255,0.12) 37%, rgba(255,255,255,0.06) 63%);
+      background: linear-gradient(90deg, rgba(255,255,255,0.05) 25%, rgba(255,255,255,0.12) 45%, rgba(255,255,255,0.05) 65%);
       background-size: 400% 100%;
       animation: ab-shimmer 1.2s ease-in-out infinite;
-      border-radius: 6px; height: 12px; width: 120px;
+      border-radius: 999px; height: 10px; width: 120px; opacity: .6;
     }
     @keyframes ab-shimmer {
       0% { background-position: 100% 0; }
@@ -251,8 +258,9 @@
   minimize();
 
   /** ===== 状态与卡片 ===== */
-  const state = new Map();              // key -> { value, addr }
+  const state = new Map();              // key -> { value, addr, ts }
   const cardsByKey = new Map();
+  const timeDisplays = new Map();
   let   lastOrder = MODELS.map(m=>m.key);
   let   lastGlobalSuccess = 0;
   let   seenAnySuccess = false;
@@ -265,7 +273,10 @@
     card.innerHTML = `
       <div class="ab-icon" title="点击复制地址">${m.badge}</div>
       <div class="ab-body">
-        <div class="ab-name">${m.key}</div>
+        <div class="ab-head">
+          <div class="ab-name" title="${m.key}">${m.key}</div>
+          <div class="ab-time"><span class="skeleton" style="width:54px;"></span></div>
+        </div>
         <div class="ab-val"><span class="skeleton"></span></div>
         <div class="ab-sub"><span class="skeleton" style="width:90px;"></span></div>
       </div>
@@ -274,7 +285,8 @@
     cardsByKey.set(m.key, card);
 
     // 初始状态
-    state.set(m.key, { value: null, addr: ADDRRSafe(ADDRS[m.key]) });
+    state.set(m.key, { value: null, addr: ADDRRSafe(ADDRS[m.key]), ts: 0 });
+    timeDisplays.set(m.key, card.querySelector('.ab-time'));
 
     // 复制地址
     card.querySelector('.ab-icon').addEventListener('click', async ()=>{
@@ -287,6 +299,8 @@
       } catch { showToast('复制失败'); }
     });
   });
+
+  refreshCardTimes();
 
   /** ===== 网络层 ===== */
   function gmPostJson(url, data) {
@@ -380,13 +394,15 @@
     const subEl = el.querySelector('.ab-sub');
     if (value == null) {
       valEl.innerHTML = '<span class="skeleton" style="width:120px;"></span>';
-      subEl.textContent = s.addr ? '暂不可用' : '地址未配置';
+      subEl.textContent = s.addr ? '等待数据…' : '地址未配置';
+      s.ts = 0;
     } else {
       const prev = lastValueMap.get(mkey);
       valEl.textContent = fmtUSD(value);
       const pnl = value - INITIAL_CAPITAL;
       const pct = pnl / INITIAL_CAPITAL;
       subEl.innerHTML = `PnL <span class="${pnl>=0?'pos':'neg'}">${fmtUSD(pnl)} · ${fmtPct(pct)}</span>`;
+      s.ts = Date.now();
 
       // 涨跌闪烁（更柔和）
       if (typeof prev === 'number' && prev !== value) {
@@ -429,6 +445,7 @@
     });
 
     lastOrder = newOrder;
+    refreshCardTimes();
   }
 
   /** ===== 顶栏状态：Live / Stale / Dead ===== */
@@ -443,12 +460,31 @@
     dot.className = 'ab-dot ' + (stale ? 'ab-warn' : 'ab-live');
     timeEl.textContent = (stale ? 'Stale' : ('更新 ' + fmtTime(now)));
   }
-  setInterval(updateStatus, 1000); // 轻量 UI 刷新，不打网络
+  function refreshCardTimes(){
+    const now = Date.now();
+    timeDisplays.forEach((el, key)=>{
+      if (!el) return;
+      const s = state.get(key);
+      if (!s) return;
+      if (!s.addr) { el.textContent = '未配置'; return; }
+      if (!s.ts) { el.textContent = '等待数据'; return; }
+      el.textContent = fmtSince(s.ts, now);
+    });
+  }
+  setInterval(()=>{ updateStatus(); refreshCardTimes(); }, 1000); // 轻量 UI 刷新，不打网络
 
   /** ===== 工具函数 ===== */
   function ADDRRSafe(addr) { return typeof addr === 'string' ? addr.trim() : ''; }
   function fmtUSD(n){ return n==null ? '—' : '$' + n.toLocaleString(undefined,{maximumFractionDigits:2}); }
   function fmtPct(n){ return n==null ? '—' : ((n>=0?'+':'') + (n*100).toFixed(2) + '%'); }
+  function fmtSince(ts, now = Date.now()){
+    const diff = Math.max(0, now - ts);
+    if (diff < 5000) return '刚刚';
+    if (diff < 60000) return Math.floor(diff/1000) + ' 秒前';
+    if (diff < 3600000) return Math.floor(diff/60000) + ' 分钟前';
+    if (diff < 86400000) return Math.floor(diff/3600000) + ' 小时前';
+    return Math.floor(diff/86400000) + ' 天前';
+  }
   function fmtTime(ts){
     const d=new Date(ts); const p=n=>n<10?'0'+n:n;
     return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
