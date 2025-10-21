@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Alpha Board（链上/Small/横排/退避/柔和玻璃）
 // @namespace    https://greasyfork.org/zh-CN/users/alpha-arena
-// @version      0.5.2
+// @version      0.5.3
 // @description  无记忆 | 默认最小化 | 无外显排名 | 标题一键最小化 | 按模型独立退避(3s→5s→8s→12s) | 仅 Hyperliquid info；横排6卡；更高透明度/更少玻璃态；P&L 绿/红降饱和。
 // @match        *://*/*
 // @grant        GM_xmlhttpRequest
@@ -48,9 +48,9 @@
       font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI",
                    Roboto,"PingFang SC","Microsoft YaHei","Noto Sans CJK SC", Arial;
       color-scheme: dark;
-      --gap: 6px; --radius: 12px;
-      --pY: 6px; --pX: 8px; --icon: 26px;
-      --fsName: 11px; --fsVal: 14px; --fsSub: 11px;
+      --gap: 8px; --radius: 14px;
+      --pY: 10px; --pX: 12px; --icon: 28px;
+      --fsName: 11px; --fsVal: 16px; --fsSub: 11px;
 
       /* ↓↓↓ 降低玻璃态：整体更通透，blur/saturate 更低 ↓↓↓ */
       --bg: rgba(16,18,22,0.28);
@@ -141,8 +141,11 @@
 
     .ab-card {
       flex: 0 0 auto;
-      min-width: 168px; max-width: 220px;
-      position: relative; display:flex; align-items:center; gap:8px;
+      min-width: 188px; max-width: 236px;
+      position: relative;
+      display:flex;
+      align-items:flex-start;
+      gap:10px;
       padding: var(--pY) var(--pX);
       background: var(--card);
       border: 1px solid var(--brd);
@@ -158,20 +161,111 @@
 
     .ab-icon {
       width: var(--icon); height: var(--icon);
-      border-radius: 8px; display:grid; place-items:center;
+      border-radius: 10px;
+      display:grid; place-items:center;
       font-weight:800; font-size:11px; color:#e5e7eb;
-      background: linear-gradient(135deg, rgba(255,255,255,0.10), rgba(255,255,255,0.02));
-      border: 1px solid var(--soft); user-select:none; cursor: pointer;
+      background: linear-gradient(135deg, rgba(255,255,255,0.16), rgba(255,255,255,0.04));
+      border: 1px solid color-mix(in srgb, var(--soft) 70%, transparent);
+      user-select:none; cursor: pointer;
       box-shadow: inset 0 0 6px rgba(255,255,255,0.05);
+      transition: transform .18s ease;
     }
-    .ab-body { display:grid; gap:2px; }
-    .ab-name { font-size: var(--fsName); color:#b8bec8; font-weight: 600; letter-spacing:.2px; }
-    .ab-val  { font-size: var(--fsVal);  color:#f3f4f6; font-weight: 800; letter-spacing:.2px; font-variant-numeric: tabular-nums; }
-    .ab-sub  { font-size: var(--fsSub);  color:#9aa4b2; font-variant-numeric: tabular-nums; }
+    .ab-card:hover .ab-icon { transform: translateY(-1px); }
 
-    /* ↓ P&L 低饱和绿/红 */
-    .ab-sub .pos { color: color-mix(in srgb, var(--green) 82%, #d1fae5); }
-    .ab-sub .neg { color: color-mix(in srgb, var(--red) 82%,   #fee2e2); }
+    .ab-body {
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+    .ab-head {
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:8px;
+    }
+    .ab-name {
+      font-size: var(--fsName);
+      color:#c3c8d3;
+      font-weight: 600;
+      letter-spacing:.25px;
+      text-transform: uppercase;
+    }
+    .ab-updated {
+      font-size: var(--fsSub);
+      color:#9aa4b2;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+    }
+    .ab-val {
+      font-size: var(--fsVal);
+      color:#f3f4f6;
+      font-weight: 800;
+      letter-spacing:.25px;
+      font-variant-numeric: tabular-nums;
+    }
+    .ab-meta {
+      display:flex;
+      flex-wrap: wrap;
+      gap:6px;
+    }
+    .ab-chip {
+      display:inline-flex;
+      align-items:center;
+      gap:4px;
+      padding:4px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.10);
+      background: rgba(255,255,255,0.06);
+      font-size:10px;
+      letter-spacing:.2px;
+      color:#cfd3dc;
+    }
+    .ab-chip .chip-label {
+      text-transform: uppercase;
+      font-weight:600;
+      opacity:.7;
+    }
+    .ab-chip .chip-value {
+      font-weight:700;
+      font-variant-numeric: tabular-nums;
+    }
+    .ab-chip .chip-value.pos { color: color-mix(in srgb, var(--green) 84%, #d1fae5); }
+    .ab-chip .chip-value.neg { color: color-mix(in srgb, var(--red)   84%, #fee2e2); }
+    .ab-chip .chip-value.muted { color:#9aa4b2; font-weight:600; }
+
+    .ab-sub {
+      display:flex;
+      align-items:center;
+      flex-wrap:wrap;
+      gap:6px;
+      font-size: var(--fsSub);
+      color:#9aa4b2;
+    }
+    .ab-sub .sub-label {
+      text-transform: uppercase;
+      font-weight:600;
+      letter-spacing:.3px;
+      opacity:.72;
+    }
+    .ab-sub .sub-divider { opacity:.35; }
+    .ab-sub .sub-value {
+      color:#cfd3dc;
+      font-variant-numeric: tabular-nums;
+    }
+    .ab-sub .sub-value.good { color: color-mix(in srgb, var(--green) 80%, #d1fae5); }
+    .ab-sub .sub-value.bad  { color: color-mix(in srgb, var(--red)   80%, #fee2e2); }
+    .ab-addr {
+      font-family: "JetBrains Mono", "SFMono-Regular", "Cascadia Code", monospace;
+      font-size:10px;
+      letter-spacing:.2px;
+      padding:2px 4px;
+      border-radius:4px;
+      border:1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.04);
+      color:#e5e7eb;
+    }
 
     /* 涨跌闪烁（进一步降低透明度与冲击感） */
     @media (prefers-reduced-motion: no-preference) {
@@ -181,11 +275,15 @@
 
     /* 骨架占位 */
     .skeleton {
+      display:inline-block;
       background: linear-gradient(90deg, rgba(255,255,255,0.06) 25%, rgba(255,255,255,0.12) 37%, rgba(255,255,255,0.06) 63%);
       background-size: 400% 100%;
       animation: ab-shimmer 1.2s ease-in-out infinite;
-      border-radius: 6px; height: 12px; width: 120px;
+      border-radius: 6px; height: 12px; width: 100px;
     }
+    .skeleton-val { height: 20px; width: 140px; border-radius: 8px; }
+    .skeleton-chip { height: 14px; width: 72px; border-radius: 999px; }
+    .skeleton-text { height: 12px; width: 90px; }
     @keyframes ab-shimmer {
       0% { background-position: 100% 0; }
       100% { background-position: -100% 0; }
@@ -265,16 +363,23 @@
     card.innerHTML = `
       <div class="ab-icon" title="点击复制地址">${m.badge}</div>
       <div class="ab-body">
-        <div class="ab-name">${m.key}</div>
-        <div class="ab-val"><span class="skeleton"></span></div>
-        <div class="ab-sub"><span class="skeleton" style="width:90px;"></span></div>
+        <div class="ab-head">
+          <div class="ab-name">${m.key}</div>
+          <div class="ab-updated"><span class="skeleton skeleton-text"></span></div>
+        </div>
+        <div class="ab-val"><span class="skeleton skeleton-val"></span></div>
+        <div class="ab-meta">
+          <span class="ab-chip" data-chip="pnl"><span class="skeleton skeleton-chip"></span></span>
+          <span class="ab-chip" data-chip="roi"><span class="skeleton skeleton-chip"></span></span>
+        </div>
+        <div class="ab-sub"><span class="skeleton skeleton-text"></span></div>
       </div>
     `;
     row.appendChild(card);
     cardsByKey.set(m.key, card);
 
     // 初始状态
-    state.set(m.key, { value: null, addr: ADDRRSafe(ADDRS[m.key]) });
+    state.set(m.key, { value: null, addr: ADDRRSafe(ADDRS[m.key]), updatedAt: null });
 
     // 复制地址
     card.querySelector('.ab-icon').addEventListener('click', async ()=>{
@@ -342,8 +447,9 @@
         // 成功：重置退避 & 更新全局状态
         rec.step = 0;
         seenAnySuccess = true;
-        lastGlobalSuccess = Date.now();
-        updateCard(mkey, val);
+        const now = Date.now();
+        lastGlobalSuccess = now;
+        updateCard(mkey, val, now);
         updateStatus(); // 刷新顶栏状态
       }
       scheduleNext();
@@ -363,9 +469,10 @@
   MODELS.forEach(m => startPoller(m.key));
 
   /** ===== 渲染 ===== */
-  function updateCard(mkey, value){
+  function updateCard(mkey, value, ts){
     const s = state.get(mkey);
     s.value = value;
+    s.updatedAt = value == null ? null : (typeof ts === 'number' ? ts : Date.now());
 
     // 先记录旧位置信息（用于 FLIP 动画）
     const firstRects = new Map();
@@ -378,15 +485,41 @@
     const el = cardsByKey.get(mkey);
     const valEl = el.querySelector('.ab-val');
     const subEl = el.querySelector('.ab-sub');
+    const pnlEl = el.querySelector('[data-chip="pnl"]');
+    const roiEl = el.querySelector('[data-chip="roi"]');
+    const updatedEl = el.querySelector('.ab-updated');
+
+    const buildStatus = (text, cls) => {
+      const pieces = [
+        '<span class="sub-label">状态</span>',
+        `<span class="sub-value ${cls}">${text}</span>`
+      ];
+      if (s.addr) {
+        pieces.push('<span class="sub-divider">·</span>');
+        pieces.push('<span class="sub-label">地址</span>');
+        pieces.push(`<span class="sub-value"><span class="ab-addr">${fmtAddress(s.addr)}</span></span>`);
+      }
+      return pieces.join('');
+    };
+
     if (value == null) {
-      valEl.innerHTML = '<span class="skeleton" style="width:120px;"></span>';
-      subEl.textContent = s.addr ? '暂不可用' : '地址未配置';
+      valEl.innerHTML = '<span class="skeleton skeleton-val"></span>';
+      pnlEl.innerHTML = '<span class="chip-label">PnL</span><span class="chip-value muted">—</span>';
+      roiEl.innerHTML = '<span class="chip-label">收益率</span><span class="chip-value muted">—</span>';
+      updatedEl.textContent = s.addr ? '等待数据' : '未配置地址';
+      const statusText = s.addr ? '暂不可用' : '地址未配置';
+      subEl.innerHTML = buildStatus(statusText, 'bad');
+      lastValueMap.delete(mkey);
     } else {
       const prev = lastValueMap.get(mkey);
       valEl.textContent = fmtUSD(value);
       const pnl = value - INITIAL_CAPITAL;
       const pct = pnl / INITIAL_CAPITAL;
-      subEl.innerHTML = `PnL <span class="${pnl>=0?'pos':'neg'}">${fmtUSD(pnl)} · ${fmtPct(pct)}</span>`;
+      const trend = pnl >= 0 ? 'pos' : 'neg';
+      pnlEl.innerHTML = `<span class="chip-label">PnL</span><span class="chip-value ${trend}">${fmtUSD(pnl)}</span>`;
+      roiEl.innerHTML = `<span class="chip-label">收益率</span><span class="chip-value ${trend}">${fmtPct(pct)}</span>`;
+      updatedEl.textContent = '更新 ' + fmtTime(s.updatedAt);
+      subEl.innerHTML = buildStatus('正常', 'good');
 
       // 涨跌闪烁（更柔和）
       if (typeof prev === 'number' && prev !== value) {
@@ -447,6 +580,12 @@
 
   /** ===== 工具函数 ===== */
   function ADDRRSafe(addr) { return typeof addr === 'string' ? addr.trim() : ''; }
+  function fmtAddress(addr){
+    if (typeof addr !== 'string') return '';
+    const a = addr.trim();
+    if (a.length <= 10) return a;
+    return a.slice(0, 6) + '…' + a.slice(-4);
+  }
   function fmtUSD(n){ return n==null ? '—' : '$' + n.toLocaleString(undefined,{maximumFractionDigits:2}); }
   function fmtPct(n){ return n==null ? '—' : ((n>=0?'+':'') + (n*100).toFixed(2) + '%'); }
   function fmtTime(ts){
