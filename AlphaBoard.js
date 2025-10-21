@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Alpha Board（链上/Small/横排/退避/柔和玻璃）
 // @namespace    https://greasyfork.org/zh-CN/users/alpha-arena
-// @version      0.6.0
-// @description  无记忆 | 默认最小化 | 无外显排名 | 标题一键最小化 | 按模型独立退避(3s→5s→8s→12s) | 仅 Hyperliquid info；横排6卡；轻量玻璃态；P&L 低饱和；卡片含相对更新时间。
+// @version      1.0.0
+// @description  Alpha Board 1.0 · 无记忆 · 默认最小化 · 无外显排名 · 标题一键最小化 · 按模型独立退避 (3s→5s→8s→12s) · 仅 Hyperliquid info · 横排 6 卡 · 轻量玻璃态 · P&L 低饱和 · 卡片含相对更新时间。
 // @match        *://*/*
 // @grant        GM_xmlhttpRequest
 // @grant        GM_addStyle
@@ -14,14 +14,26 @@
 (function () {
   'use strict';
 
-  /** ===== 常量与默认（无记忆） ===== */
+  /**
+   * Alpha Board 1.0.0
+   * -----------------
+   * Hyperliquid 账户资金追踪的初版公开脚本：
+   *   - 以无记忆模式运行，保证 Greasemonkey/Tampermonkey 中的隐私洁净；
+   *   - 默认最小化，随时可在任意网页呼出一排 6 卡的链上看板；
+   *   - 为每个模型独立轮询并自动退避，失败后延迟 3s→5s→8s→12s；
+   *   - 在 UI 层面做了柔和玻璃态与低饱和的涨跌提示，聚焦数据本身；
+   *   - 卡片展示实时 P&L、相对更新时间，并可一键复制地址；
+   *   - 仅依赖 Hyperliquid 官方 info 接口，无需额外后台。
+   */
+
+  /** ===== 常量与默认（无记忆，无持久化） ===== */
   const INITIAL_CAPITAL = 10000;     // PnL 基准
   const FRESH_THRESH_MS = 15000;     // 全局“Stale”阈值（用于顶栏指示）
   const JITTER_MS = 250;             // 轻微抖动，避免齐步走
   const BACKOFF_STEPS = [3000, 5000, 8000, 12000]; // 失败退避阶梯
   let   COLLAPSED = true;            // 默认最小化（不落盘）
 
-  // 默认地址（可直接在此常量区改，不弹窗、不写盘）
+  // 默认地址（可直接在此常量区改，不弹窗、不写盘；1.0 版本保持脚本纯净）
   const ADDRS = {
     'GPT-5': '0x67293D914eAFb26878534571add81F6Bd2D9fE06',
     'Gemini 2.5 Pro': '0x1b7A7D099a670256207a30dD0AE13D35f278010f',
@@ -31,6 +43,7 @@
     'Qwen3-Max': '0x7a8fd8bba33e37361ca6b0cb4518a44681bad2f3'
   };
 
+  // 维护展示顺序与卡片标识的声明式配置，便于后续版本扩展更多模型
   const MODELS = [
     { key: 'GPT-5', badge: 'GPT' },
     { key: 'Gemini 2.5 Pro', badge: 'GEM' },
@@ -259,6 +272,7 @@
   minimize();
 
   /** ===== 状态与卡片 ===== */
+  // 运行时状态仅保留在内存中，确保刷新页面后即回到默认值
   const state = new Map();              // key -> { value, addr, ts }
   const cardsByKey = new Map();
   const timeDisplays = new Map();
@@ -304,6 +318,10 @@
   refreshCardTimes();
 
   /** ===== 网络层 ===== */
+  /**
+   * GM_xmlhttpRequest 的 Promise 封装，便于在 async/await 流程中复用。
+   * Hyperliquid info 接口需要跨域，因此依赖 Tampermonkey/Greasemonkey 的能力。
+   */
   function gmPostJson(url, data) {
     return new Promise((resolve, reject) => {
       GM_xmlhttpRequest({
@@ -319,6 +337,10 @@
     });
   }
 
+  /**
+   * 从 Hyperliquid 拉取单一地址的账户权益，返回数值或 null。
+   * 这一层仍只处理“值是否可用”，格式化与 UI 逻辑交由后续步骤。
+   */
   async function fetchAccountValue(address) {
     if (!address || !/^0x[a-fA-F0-9]{40}$/i.test(address)) return null;
     try {
@@ -333,6 +355,12 @@
 
   /** ===== 按模型独立轮询 + 失败退避 ===== */
   const pollers = new Map(); // key -> { step, timer }
+  /**
+   * 为每个模型开启独立轮询：
+   *   - 根据 BACKOFF_STEPS 退避，失败后逐级拉长间隔；
+   *   - 成功后重置退避阶梯，并同步 UI 状态；
+   *   - 无地址时保持最低频率以避免噪声。
+   */
   function startPoller(mkey){
     const rec = { step: 0, timer: null };
     pollers.set(mkey, rec);
@@ -378,6 +406,12 @@
   MODELS.forEach(m => startPoller(m.key));
 
   /** ===== 渲染 ===== */
+  /**
+   * 根据最新数据刷新卡片：
+   *   - 处理 null 值（等待数据 / 地址未配置）；
+   *   - 以账户权益排序，但不在 UI 中显示名次；
+   *   - 使用 FLIP 动画降低重排突兀感。
+   */
   function updateCard(mkey, value){
     const s = state.get(mkey);
     s.value = value;
@@ -450,6 +484,12 @@
   }
 
   /** ===== 顶栏状态：Live / Stale / Dead ===== */
+  /**
+   * 顶栏点位是整个看板的健康指示灯：
+   *   - 尚未成功拉取数据 → 灰色 Dead；
+   *   - 最近一次成功超过 FRESH_THRESH_MS → 黄色 Stale；
+   *   - 否则维持绿色 Live。
+   */
   function updateStatus(){
     const now = Date.now();
     if (!seenAnySuccess) {
@@ -461,6 +501,7 @@
     dot.className = 'ab-dot ' + (stale ? 'ab-warn' : 'ab-live');
     timeEl.textContent = (stale ? 'Stale' : ('更新 ' + fmtTime(now)));
   }
+  // 定时刷新卡片显示的“相对时间”，与网络请求解耦，避免不必要的接口压力
   function refreshCardTimes(){
     const now = Date.now();
     timeDisplays.forEach((el, key)=>{
@@ -490,6 +531,7 @@
     const d=new Date(ts); const p=n=>n<10?'0'+n:n;
     return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
   }
+  // 轻量提示气泡，避免打断用户当前页面操作
   function showToast(msg){
     toast.textContent = msg;
     toast.classList.add('show');
