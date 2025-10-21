@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Alpha Board（链上/Small/横排/退避/柔和玻璃）
 // @namespace    https://greasyfork.org/zh-CN/users/alpha-arena
-// @version      0.6.0
-// @description  无记忆 | 默认最小化 | 无外显排名 | 标题一键最小化 | 按模型独立退避(3s→5s→8s→12s) | 仅 Hyperliquid info；横排6卡；轻量玻璃态；P&L 低饱和；卡片含相对更新时间。
+// @version      1.0.0
+// @description  链上实时账户看板 · 默认最小化 · 按模型独立退避 · 轻量玻璃态 UI · 低饱和 P&L · 横排 6 卡片并展示相对更新时间
 // @match        *://*/*
 // @grant        GM_xmlhttpRequest
 // @grant        GM_addStyle
@@ -14,14 +14,23 @@
 (function () {
   'use strict';
 
-  /** ===== 常量与默认（无记忆） ===== */
-  const INITIAL_CAPITAL = 10000;     // PnL 基准
-  const FRESH_THRESH_MS = 15000;     // 全局“Stale”阈值（用于顶栏指示）
-  const JITTER_MS = 250;             // 轻微抖动，避免齐步走
-  const BACKOFF_STEPS = [3000, 5000, 8000, 12000]; // 失败退避阶梯
-  let   COLLAPSED = true;            // 默认最小化（不落盘）
+  /**
+   * Alpha Board 1.0.0
+   * ------------------
+   *  - 针对多模型地址的链上账户价值聚合看板
+   *  - 以 Hyperliquid API 为数据源，独立退避拉取、无本地持久化
+   *  - 默认最小化，支持标题点击折叠，卡片横向排列并带相对时间
+   *  - 轻量玻璃态视觉 + 低饱和红/绿提示，适合常驻屏幕
+   */
 
-  // 默认地址（可直接在此常量区改，不弹窗、不写盘）
+  /** ===== 常量与默认（无记忆） ===== */
+  const INITIAL_CAPITAL = 10000;     // 账户价值基准，用于计算 PnL
+  const FRESH_THRESH_MS = 15000;     // 顶栏“Stale” 阈值
+  const JITTER_MS = 250;             // 轮询轻微抖动，避免同时请求
+  const BACKOFF_STEPS = [3000, 5000, 8000, 12000]; // 网络失败退避梯度
+  let   COLLAPSED = true;            // 默认以折叠状态启动
+
+  // 默认地址列表：直接在此修改即可，不会弹窗也不写本地存储
   const ADDRS = {
     'GPT-5': '0x67293D914eAFb26878534571add81F6Bd2D9fE06',
     'Gemini 2.5 Pro': '0x1b7A7D099a670256207a30dD0AE13D35f278010f',
@@ -31,6 +40,7 @@
     'Qwen3-Max': '0x7a8fd8bba33e37361ca6b0cb4518a44681bad2f3'
   };
 
+  // 模型清单，用于确定卡片顺序与徽章缩写
   const MODELS = [
     { key: 'GPT-5', badge: 'GPT' },
     { key: 'Gemini 2.5 Pro', badge: 'GEM' },
@@ -41,6 +51,7 @@
   ];
 
   /** ===== 玻璃态 + 透明度优化样式（更透、更克制） ===== */
+  // 所有视觉样式集中在一处，方便微调颜色、透明度或布局。
   GM_addStyle(`
     #ab-dock {
       position: fixed; left: 12px; bottom: 12px; z-index: 2147483647;
@@ -210,6 +221,7 @@
   `);
 
   /** ===== DOM ===== */
+  // 创建挂载点与初始骨架，配合 toggle/title 控制展示状态。
   const dock = document.createElement('div');
   dock.id = 'ab-dock';
   dock.innerHTML = `
@@ -260,9 +272,9 @@
 
   /** ===== 状态与卡片 ===== */
   const state = new Map();              // key -> { value, addr, ts }
-  const cardsByKey = new Map();
-  const timeDisplays = new Map();
-  let   lastOrder = MODELS.map(m=>m.key);
+  const cardsByKey = new Map();         // key -> card DOM 节点
+  const timeDisplays = new Map();       // key -> 时间显示 DOM
+  let   lastOrder = MODELS.map(m=>m.key); // 保留历史顺序以便未来做最小化动画
   let   lastGlobalSuccess = 0;
   let   seenAnySuccess = false;
   const lastValueMap = new Map();       // 涨跌闪烁使用
@@ -285,7 +297,7 @@
     row.appendChild(card);
     cardsByKey.set(m.key, card);
 
-    // 初始状态
+    // 初始状态：为每张卡片记住地址和时间显示节点
     state.set(m.key, { value: null, addr: ADDRRSafe(ADDRS[m.key]), ts: 0 });
     timeDisplays.set(m.key, card.querySelector('.ab-time'));
 
@@ -304,6 +316,12 @@
   refreshCardTimes();
 
   /** ===== 网络层 ===== */
+  /**
+   * 以 GM_xmlhttpRequest POST JSON，统一处理超时/异常。
+   * @param {string} url
+   * @param {object} data
+   * @returns {Promise<any>}
+   */
   function gmPostJson(url, data) {
     return new Promise((resolve, reject) => {
       GM_xmlhttpRequest({
@@ -319,6 +337,11 @@
     });
   }
 
+  /**
+   * 拉取地址的账户价值，优先读取逐仓/全仓字段，异常时返回 null。
+   * @param {string} address
+   * @returns {Promise<number|null>}
+   */
   async function fetchAccountValue(address) {
     if (!address || !/^0x[a-fA-F0-9]{40}$/i.test(address)) return null;
     try {
@@ -333,6 +356,11 @@
 
   /** ===== 按模型独立轮询 + 失败退避 ===== */
   const pollers = new Map(); // key -> { step, timer }
+
+  /**
+   * 为指定模型启动独立轮询：成功时重置退避，失败时升级退避。
+   * @param {string} mkey
+   */
   function startPoller(mkey){
     const rec = { step: 0, timer: null };
     pollers.set(mkey, rec);
@@ -378,6 +406,11 @@
   MODELS.forEach(m => startPoller(m.key));
 
   /** ===== 渲染 ===== */
+  /**
+   * 更新单个模型卡片的文案、排序及动画效果。
+   * @param {string} mkey
+   * @param {number|null} value
+   */
   function updateCard(mkey, value){
     const s = state.get(mkey);
     s.value = value;
@@ -450,6 +483,9 @@
   }
 
   /** ===== 顶栏状态：Live / Stale / Dead ===== */
+  /**
+   * 刷新顶栏状态点及文字，反映最新网络健康情况。
+   */
   function updateStatus(){
     const now = Date.now();
     if (!seenAnySuccess) {
@@ -461,6 +497,9 @@
     dot.className = 'ab-dot ' + (stale ? 'ab-warn' : 'ab-live');
     timeEl.textContent = (stale ? 'Stale' : ('更新 ' + fmtTime(now)));
   }
+  /**
+   * 刷新卡片上的相对时间显示。
+   */
   function refreshCardTimes(){
     const now = Date.now();
     timeDisplays.forEach((el, key)=>{
@@ -472,12 +511,21 @@
       el.textContent = fmtSince(s.ts, now);
     });
   }
-  setInterval(()=>{ updateStatus(); refreshCardTimes(); }, 1000); // 轻量 UI 刷新，不打网络
+  // 轻量 UI 刷新：仅更新文本与状态点，不追加网络请求
+  setInterval(()=>{ updateStatus(); refreshCardTimes(); }, 1000);
 
   /** ===== 工具函数 ===== */
+  /** 清洗地址字符串，避免 undefined/null */
   function ADDRRSafe(addr) { return typeof addr === 'string' ? addr.trim() : ''; }
+  /** 统一格式化 USD 文案 */
   function fmtUSD(n){ return n==null ? '—' : '$' + n.toLocaleString(undefined,{maximumFractionDigits:2}); }
+  /** 输出带正负号的百分比 */
   function fmtPct(n){ return n==null ? '—' : ((n>=0?'+':'') + (n*100).toFixed(2) + '%'); }
+  /**
+   * 根据时间戳生成中文相对时间。
+   * @param {number} ts
+   * @param {number} [now]
+   */
   function fmtSince(ts, now = Date.now()){
     const diff = Math.max(0, now - ts);
     if (diff < 5000) return '刚刚';
@@ -486,10 +534,15 @@
     if (diff < 86400000) return Math.floor(diff/3600000) + ' 小时前';
     return Math.floor(diff/86400000) + ' 天前';
   }
+  /** HH:MM:SS 形式的绝对时间 */
   function fmtTime(ts){
     const d=new Date(ts); const p=n=>n<10?'0'+n:n;
     return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
   }
+  /**
+   * 统一的轻量提示气泡。
+   * @param {string} msg
+   */
   function showToast(msg){
     toast.textContent = msg;
     toast.classList.add('show');
