@@ -108,6 +108,27 @@
     .ab-warn  { background: #f59e0b;   box-shadow: 0 0 10px rgba(245,158,11,0.30); }
     .ab-dead  { background: var(--red); box-shadow: 0 0 10px color-mix(in srgb, var(--red) 35%, transparent); }
 
+    #ab-link {
+      pointer-events: auto;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px;
+      height: 26px;
+      border-radius: 8px;
+      color: #e6e8ee;
+      text-decoration: none;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid transparent;
+      transition: background .2s ease, border-color .2s ease, transform .15s ease;
+    }
+    #ab-link:hover {
+      background: rgba(255,255,255,0.10);
+      border-color: rgba(255,255,255,0.12);
+      transform: translateY(-1px);
+    }
+    #ab-link svg { width: 14px; height: 14px; fill: currentColor; }
+
     /* 横向一行 + 滚动 */
     #ab-row {
       display:flex; flex-wrap: nowrap; gap: var(--gap);
@@ -194,6 +215,19 @@
             <span id="ab-time">Syncing…</span>
           </div>
         </div>
+        <a
+          id="ab-link"
+          href="https://nof1.ai"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="打开 Nof1.ai（新窗口）"
+          title="打开 Nof1.ai（新窗口）"
+        >
+          <svg viewBox="0 0 20 20" aria-hidden="true">
+            <path d="M5 4a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 112 0v3a4 4 0 01-4 4H5a4 4 0 01-4-4V6a4 4 0 014-4h3a1 1 0 110 2H5z" />
+            <path d="M9 3a1 1 0 011-1h7a1 1 0 011 1v7a1 1 0 11-2 0V5.414l-8.293 8.293a1 1 0 11-1.414-1.414L14.586 4H10a1 1 0 01-1-1z" />
+          </svg>
+        </a>
       </div>
       <div id="ab-row"></div>
       <div id="ab-toast" role="status" aria-live="polite"></div>
