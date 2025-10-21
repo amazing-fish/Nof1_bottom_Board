@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Alpha Board（链上/Small/横排/退避/柔和玻璃）
 // @namespace    https://greasyfork.org/zh-CN/users/alpha-arena
-// @version      0.5.2
-// @description  无记忆 | 默认最小化 | 无外显排名 | 标题一键最小化 | 按模型独立退避(3s→5s→8s→12s) | 仅 Hyperliquid info；横排6卡；更高透明度/更少玻璃态；P&L 绿/红降饱和。
+// @version      0.5.3
+// @description  无记忆 | 默认最小化 | 无外显排名 | 标题一键最小化 | 独立退避轮询(首轮即刻拉取) | 仅 Hyperliquid info；横排6卡；更通透、低存在感底板；P&L 绿/红降饱和。
 // @match        *://*/*
 // @grant        GM_xmlhttpRequest
 // @grant        GM_addStyle
@@ -49,17 +49,17 @@
                    Roboto,"PingFang SC","Microsoft YaHei","Noto Sans CJK SC", Arial;
       color-scheme: dark;
       --gap: 6px; --radius: 12px;
-      --pY: 6px; --pX: 8px; --icon: 26px;
+      --pY: 6px; --pX: 9px; --icon: 26px;
       --fsName: 11px; --fsVal: 14px; --fsSub: 11px;
 
-      /* ↓↓↓ 降低玻璃态：整体更通透，blur/saturate 更低 ↓↓↓ */
-      --bg: rgba(16,18,22,0.28);
-      --bg2: rgba(16,18,22,0.16);
-      --card: rgba(28,31,36,0.38);
-      --card-hover: rgba(28,31,36,0.46);
-      --brd: rgba(255,255,255,0.12);
-      --soft: rgba(255,255,255,0.06);
-      --shadow: 0 10px 24px rgba(0,0,0,0.26);
+      /* ↓↓↓ 更低存在感：整体更轻、更通透 ↓↓↓ */
+      --bg: rgba(12,14,18,0.22);
+      --bg2: rgba(12,14,18,0.12);
+      --card: rgba(22,24,28,0.30);
+      --card-hover: rgba(26,28,32,0.40);
+      --brd: rgba(255,255,255,0.10);
+      --soft: rgba(255,255,255,0.05);
+      --shadow: 0 8px 22px rgba(0,0,0,0.22);
 
       /* ↓↓↓ 低饱和版本绿/红（P&L + 状态点 + 闪烁） ↓↓↓ */
       --green: hsl(142 45% 48% / 1);  /* 较 #22c55e 降饱和、略暗 */
@@ -74,14 +74,14 @@
       display: ${COLLAPSED ? 'inline-flex' : 'none'};
       align-items:center; gap:6px;
       padding:6px 10px; border-radius:12px;
-      background: linear-gradient(180deg, var(--bg), var(--bg2));
-      border:1px solid var(--brd); color:var(--text); font-weight:700; font-size:12px;
-      box-shadow: var(--shadow);
+      background: linear-gradient(180deg, color-mix(in srgb, var(--bg) 70%, transparent), var(--bg2));
+      border:1px solid rgba(255,255,255,0.08); color:var(--text); font-weight:700; font-size:12px;
+      box-shadow: 0 6px 16px rgba(0,0,0,0.22);
       cursor: pointer; user-select: none;
-      backdrop-filter: saturate(0.9) blur(4px);
+      backdrop-filter: saturate(0.85) blur(3.5px);
       transition: background .2s ease, border-color .2s ease, transform .15s ease;
     }
-    #ab-toggle:hover { border-color: rgba(255,255,255,0.18); transform: translateY(-1px); }
+    #ab-toggle:hover { border-color: rgba(255,255,255,0.14); transform: translateY(-1px); }
 
     /* 面板主体：更透、少 blur、少 saturate */
     #ab-wrap {
@@ -91,18 +91,18 @@
         linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.015)) ,
         radial-gradient(120% 150% at 0% 100%, rgba(96,165,250,0.06), transparent 55%) ,
         var(--bg);
-      border: 1px solid var(--brd);
+      border: 1px solid rgba(255,255,255,0.08);
       border-radius: 14px;
-      padding: 8px 10px;
+      padding: 7px 9px;
       box-shadow: var(--shadow);
       max-width: min(96vw, 1280px);
-      backdrop-filter: saturate(0.9) blur(4px);
+      backdrop-filter: saturate(0.82) blur(3.8px);
     }
 
     #ab-topbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
     #ab-left { display:flex; align-items:center; gap:8px; }
-    #ab-title { color:#eef1f6; font-size:11px; font-weight:700; letter-spacing:.3px; opacity:.9; cursor: pointer; }
-    #ab-status { display:flex; align-items:center; gap:6px; font-size:11px; color:#aeb1b7; }
+    #ab-title { color:#eef1f6; font-size:11px; font-weight:700; letter-spacing:.3px; opacity:.86; cursor: pointer; }
+    #ab-status { display:flex; align-items:center; gap:6px; font-size:11px; color:#a6aab3; }
     .ab-dot { width:8px; height:8px; border-radius:50%; background:#9ca3af; }
     .ab-live  { background: var(--green); box-shadow: 0 0 10px color-mix(in srgb, var(--green) 35%, transparent); }
     .ab-warn  { background: #f59e0b;   box-shadow: 0 0 10px rgba(245,158,11,0.30); }
@@ -118,12 +118,12 @@
       border-radius: 8px;
       color: #e6e8ee;
       text-decoration: none;
-      background: rgba(255,255,255,0.05);
+      background: rgba(255,255,255,0.04);
       border: 1px solid transparent;
       transition: background .2s ease, border-color .2s ease, transform .15s ease;
     }
     #ab-link:hover {
-      background: rgba(255,255,255,0.10);
+      background: rgba(255,255,255,0.08);
       border-color: rgba(255,255,255,0.12);
       transform: translateY(-1px);
     }
@@ -135,6 +135,7 @@
       overflow-x: auto; overflow-y: hidden; scrollbar-width: thin;
       max-width: min(96vw, 1280px);
       position: relative;
+      padding: 1px;
     }
     #ab-row::-webkit-scrollbar { height: 6px; }
     #ab-row::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.16); border-radius: 999px; }
@@ -142,32 +143,42 @@
     .ab-card {
       flex: 0 0 auto;
       min-width: 168px; max-width: 220px;
-      position: relative; display:flex; align-items:center; gap:8px;
+      position: relative; display:flex; align-items:flex-start; gap:10px;
       padding: var(--pY) var(--pX);
       background: var(--card);
-      border: 1px solid var(--brd);
+      border: 1px solid rgba(255,255,255,0.08);
       border-radius: var(--radius);
       transition: transform 240ms ease, box-shadow 240ms ease, background 160ms ease, border-color 160ms ease;
       will-change: transform;
+      backdrop-filter: saturate(0.82) blur(3px);
     }
     .ab-card:hover {
       background: var(--card-hover);
-      border-color: rgba(255,255,255,0.18);
-      box-shadow: 0 8px 22px rgba(0,0,0,0.28);
+      border-color: rgba(255,255,255,0.16);
+      box-shadow: 0 10px 22px rgba(0,0,0,0.25);
     }
 
     .ab-icon {
+      appearance: none;
+      padding: 0;
       width: var(--icon); height: var(--icon);
       border-radius: 8px; display:grid; place-items:center;
-      font-weight:800; font-size:11px; color:#e5e7eb;
-      background: linear-gradient(135deg, rgba(255,255,255,0.10), rgba(255,255,255,0.02));
-      border: 1px solid var(--soft); user-select:none; cursor: pointer;
-      box-shadow: inset 0 0 6px rgba(255,255,255,0.05);
+      font-weight:800; font-size:11px; color:#d5d9e1;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08); user-select:none; cursor: pointer;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02);
+      transition: border-color .2s ease, background .2s ease, transform .18s ease;
     }
+    .ab-icon:hover { border-color: rgba(255,255,255,0.18); background: rgba(255,255,255,0.08); transform: translateY(-1px); }
+    .ab-icon:focus-visible { outline: 2px solid color-mix(in srgb, var(--blue) 55%, transparent); outline-offset: 2px; }
     .ab-body { display:grid; gap:2px; }
-    .ab-name { font-size: var(--fsName); color:#b8bec8; font-weight: 600; letter-spacing:.2px; }
-    .ab-val  { font-size: var(--fsVal);  color:#f3f4f6; font-weight: 800; letter-spacing:.2px; font-variant-numeric: tabular-nums; }
-    .ab-sub  { font-size: var(--fsSub);  color:#9aa4b2; font-variant-numeric: tabular-nums; }
+    .ab-head { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+    .ab-name { font-size: var(--fsName); color:#b6bcc6; font-weight: 600; letter-spacing:.2px; }
+    .ab-meta { font-size: 10px; color:#7f8794; letter-spacing:.25px; }
+    .ab-meta.missing { color: color-mix(in srgb, var(--red) 68%, #fff); }
+    .ab-valwrap { display:flex; align-items:baseline; gap:6px; }
+    .ab-val  { font-size: var(--fsVal);  color:#f3f4f6; font-weight: 800; letter-spacing:.2px; font-variant-numeric: tabular-nums; line-height:1.35; }
+    .ab-sub  { font-size: var(--fsSub);  color:#919aa7; font-variant-numeric: tabular-nums; }
 
     /* ↓ P&L 低饱和绿/红 */
     .ab-sub .pos { color: color-mix(in srgb, var(--green) 82%, #d1fae5); }
@@ -183,8 +194,8 @@
     .skeleton {
       background: linear-gradient(90deg, rgba(255,255,255,0.06) 25%, rgba(255,255,255,0.12) 37%, rgba(255,255,255,0.06) 63%);
       background-size: 400% 100%;
-      animation: ab-shimmer 1.2s ease-in-out infinite;
-      border-radius: 6px; height: 12px; width: 120px;
+      animation: ab-shimmer 1.3s ease-in-out infinite;
+      border-radius: 5px; height: 12px; width: 120px;
     }
     @keyframes ab-shimmer {
       0% { background-position: 100% 0; }
@@ -194,7 +205,7 @@
     /* Toast */
     #ab-toast {
       position: absolute; left: 8px; bottom: 100%; margin-bottom: 8px;
-      background: rgba(0,0,0,0.78); color:#fff; padding:6px 8px; border-radius:8px;
+      background: rgba(12,14,18,0.82); color:#fff; padding:6px 8px; border-radius:8px;
       font-size:11px; pointer-events:none; opacity:0; transform: translateY(6px);
       transition: opacity .2s ease, transform .2s ease;
     }
@@ -259,30 +270,39 @@
   const lastValueMap = new Map();       // 涨跌闪烁使用
 
   MODELS.forEach((m) => {
+    const addr = ADDRRSafe(ADDRS[m.key]);
+    state.set(m.key, { value: null, addr });
+
     const card = document.createElement('div');
     card.className = 'ab-card';
     card.setAttribute('data-key', m.key);
     card.innerHTML = `
-      <div class="ab-icon" title="点击复制地址">${m.badge}</div>
+      <button class="ab-icon" type="button" title="点击复制地址" aria-label="复制 ${m.key} 地址">${m.badge}</button>
       <div class="ab-body">
-        <div class="ab-name">${m.key}</div>
-        <div class="ab-val"><span class="skeleton"></span></div>
+        <div class="ab-head">
+          <div class="ab-name">${m.key}</div>
+          <div class="ab-meta">${addr ? shortAddr(addr) : '地址未配置'}</div>
+        </div>
+        <div class="ab-valwrap">
+          <div class="ab-val"><span class="skeleton"></span></div>
+        </div>
         <div class="ab-sub"><span class="skeleton" style="width:90px;"></span></div>
       </div>
     `;
     row.appendChild(card);
     cardsByKey.set(m.key, card);
 
-    // 初始状态
-    state.set(m.key, { value: null, addr: ADDRRSafe(ADDRS[m.key]) });
+    const metaEl = card.querySelector('.ab-meta');
+    metaEl.classList.toggle('missing', !addr);
 
     // 复制地址
-    card.querySelector('.ab-icon').addEventListener('click', async ()=>{
-      const addr = state.get(m.key).addr;
-      if (!addr) { showToast('未配置地址'); return; }
+    const iconBtn = card.querySelector('.ab-icon');
+    iconBtn.addEventListener('click', async ()=>{
+      const currentAddr = state.get(m.key).addr;
+      if (!currentAddr) { showToast('未配置地址'); return; }
       try {
-        if (typeof GM_setClipboard === 'function') GM_setClipboard(addr);
-        else await navigator.clipboard.writeText(addr);
+        if (typeof GM_setClipboard === 'function') GM_setClipboard(currentAddr);
+        else await navigator.clipboard.writeText(currentAddr);
         showToast('地址已复制');
       } catch { showToast('复制失败'); }
     });
@@ -317,46 +337,56 @@
   }
 
   /** ===== 按模型独立轮询 + 失败退避 ===== */
-  const pollers = new Map(); // key -> { step, timer }
+  const pollers = new Map(); // key -> { step, timer, running }
   function startPoller(mkey){
-    const rec = { step: 0, timer: null };
+    const rec = { step: 0, timer: null, running: false };
     pollers.set(mkey, rec);
 
     const run = async () => {
-      const s = state.get(mkey);
-      const addr = s.addr;
+      if (rec.running) return;
+      rec.running = true;
+      try {
+        const s = state.get(mkey);
+        const addr = s.addr;
 
-      // 无地址时：视为“不可用”，降频到最高 12s
-      if (!addr) {
-        updateCard(mkey, null);
-        rec.step = BACKOFF_STEPS.length - 1;
+        // 无地址时：视为“不可用”，降频到最高 12s
+        if (!addr) {
+          updateCard(mkey, null);
+          rec.step = BACKOFF_STEPS.length - 1;
+          return;
+        }
+
+        const val = await fetchAccountValue(addr);
+        if (val == null) {
+          // 失败：退避升级
+          rec.step = Math.min(rec.step + 1, BACKOFF_STEPS.length - 1);
+        } else {
+          // 成功：重置退避 & 更新全局状态
+          rec.step = 0;
+          seenAnySuccess = true;
+          lastGlobalSuccess = Date.now();
+          updateCard(mkey, val);
+          updateStatus(); // 刷新顶栏状态
+        }
+      } finally {
+        rec.running = false;
         scheduleNext();
-        return;
       }
-
-      const val = await fetchAccountValue(addr);
-      if (val == null) {
-        // 失败：退避升级
-        rec.step = Math.min(rec.step + 1, BACKOFF_STEPS.length - 1);
-      } else {
-        // 成功：重置退避 & 更新全局状态
-        rec.step = 0;
-        seenAnySuccess = true;
-        lastGlobalSuccess = Date.now();
-        updateCard(mkey, val);
-        updateStatus(); // 刷新顶栏状态
-      }
-      scheduleNext();
     };
 
-    function scheduleNext(){
+    function scheduleNext(initial = false){
+      clearTimeout(rec.timer);
+      if (initial) {
+        const delay = 160 + Math.random() * 420; // 首轮轻微错峰
+        rec.timer = setTimeout(run, delay);
+        return;
+      }
       const base = BACKOFF_STEPS[rec.step];
       const jitter = (Math.random() * 2 - 1) * JITTER_MS;
-      clearTimeout(rec.timer);
       rec.timer = setTimeout(run, Math.max(0, base + jitter));
     }
 
-    scheduleNext();
+    scheduleNext(true);
   }
 
   // 为所有模型启动独立轮询
@@ -378,6 +408,11 @@
     const el = cardsByKey.get(mkey);
     const valEl = el.querySelector('.ab-val');
     const subEl = el.querySelector('.ab-sub');
+    const metaEl = el.querySelector('.ab-meta');
+    if (metaEl) {
+      metaEl.textContent = s.addr ? shortAddr(s.addr) : '地址未配置';
+      metaEl.classList.toggle('missing', !s.addr);
+    }
     if (value == null) {
       valEl.innerHTML = '<span class="skeleton" style="width:120px;"></span>';
       subEl.textContent = s.addr ? '暂不可用' : '地址未配置';
@@ -447,6 +482,12 @@
 
   /** ===== 工具函数 ===== */
   function ADDRRSafe(addr) { return typeof addr === 'string' ? addr.trim() : ''; }
+  function shortAddr(addr){
+    if (!addr) return '';
+    const clean = addr.trim();
+    if (clean.length <= 10) return clean;
+    return clean.slice(0, 6) + '…' + clean.slice(-4);
+  }
   function fmtUSD(n){ return n==null ? '—' : '$' + n.toLocaleString(undefined,{maximumFractionDigits:2}); }
   function fmtPct(n){ return n==null ? '—' : ((n>=0?'+':'') + (n*100).toFixed(2) + '%'); }
   function fmtTime(ts){
