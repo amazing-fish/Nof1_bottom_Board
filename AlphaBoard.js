@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Alpha Board（链上/Small/横排/退避/柔和玻璃）
 // @namespace    https://greasyfork.org/zh-CN/users/alpha-arena
-// @version      0.5.2
+// @version      0.5.3
 // @description  无记忆 | 默认最小化 | 无外显排名 | 标题一键最小化 | 按模型独立退避(3s→5s→8s→12s) | 仅 Hyperliquid info；横排6卡；更高透明度/更少玻璃态；P&L 绿/红降饱和。
 // @match        *://*/*
 // @grant        GM_xmlhttpRequest
@@ -141,37 +141,124 @@
 
     .ab-card {
       flex: 0 0 auto;
-      min-width: 168px; max-width: 220px;
-      position: relative; display:flex; align-items:center; gap:8px;
-      padding: var(--pY) var(--pX);
+      width: clamp(176px, 20vw, 236px);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 10px;
+      padding: 12px;
       background: var(--card);
       border: 1px solid var(--brd);
       border-radius: var(--radius);
       transition: transform 240ms ease, box-shadow 240ms ease, background 160ms ease, border-color 160ms ease;
       will-change: transform;
+      overflow: hidden;
+      isolation: isolate;
+    }
+    .ab-card::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(96,165,250,0.16), rgba(255,255,255,0));
+      opacity: 0;
+      transition: opacity .3s ease;
+      pointer-events: none;
+      z-index: -1;
     }
     .ab-card:hover {
       background: var(--card-hover);
       border-color: rgba(255,255,255,0.18);
       box-shadow: 0 8px 22px rgba(0,0,0,0.28);
     }
+    .ab-card:hover::before { opacity: 1; }
+
+    .ab-inner { display:flex; flex-direction:column; gap:12px; min-height:100%; }
+    .ab-header { display:flex; align-items:center; gap:10px; }
+    .ab-meta { display:flex; flex-direction:column; gap:4px; min-width:0; }
 
     .ab-icon {
       width: var(--icon); height: var(--icon);
-      border-radius: 8px; display:grid; place-items:center;
+      border-radius: 10px;
+      display:grid; place-items:center;
       font-weight:800; font-size:11px; color:#e5e7eb;
-      background: linear-gradient(135deg, rgba(255,255,255,0.10), rgba(255,255,255,0.02));
-      border: 1px solid var(--soft); user-select:none; cursor: pointer;
+      background: linear-gradient(135deg, rgba(255,255,255,0.12), rgba(255,255,255,0.03));
+      border: 1px solid var(--soft);
+      user-select:none; cursor: pointer;
       box-shadow: inset 0 0 6px rgba(255,255,255,0.05);
+      flex-shrink: 0;
     }
-    .ab-body { display:grid; gap:2px; }
-    .ab-name { font-size: var(--fsName); color:#b8bec8; font-weight: 600; letter-spacing:.2px; }
-    .ab-val  { font-size: var(--fsVal);  color:#f3f4f6; font-weight: 800; letter-spacing:.2px; font-variant-numeric: tabular-nums; }
-    .ab-sub  { font-size: var(--fsSub);  color:#9aa4b2; font-variant-numeric: tabular-nums; }
+    .ab-name {
+      font-size: var(--fsName);
+      color:#d5d9e2;
+      font-weight: 700;
+      letter-spacing:.25px;
+    }
+    .ab-addr {
+      font-size: 10px;
+      letter-spacing: .35px;
+      color: #9097a5;
+      padding: 2px 6px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.05);
+      background: rgba(148,163,184,0.12);
+      max-width: 160px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .ab-metrics { display:flex; flex-direction:column; gap:8px; }
+    .ab-metric { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+    .ab-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: .4px;
+      color: #8d95a3;
+    }
+    .ab-val  {
+      font-size: var(--fsVal);
+      color:#f3f4f6;
+      font-weight: 800;
+      letter-spacing:.2px;
+      font-variant-numeric: tabular-nums;
+      text-align: right;
+    }
+    .ab-sub  {
+      font-size: var(--fsSub);
+      color:#9aa4b2;
+      font-variant-numeric: tabular-nums;
+      display:flex;
+      justify-content:flex-end;
+    }
 
-    /* ↓ P&L 低饱和绿/红 */
-    .ab-sub .pos { color: color-mix(in srgb, var(--green) 82%, #d1fae5); }
-    .ab-sub .neg { color: color-mix(in srgb, var(--red) 82%,   #fee2e2); }
+    .ab-pill {
+      display:inline-flex;
+      align-items:center;
+      gap:4px;
+      padding:2px 8px;
+      border-radius:999px;
+      font-weight:600;
+      letter-spacing:.25px;
+      background: rgba(255,255,255,0.08);
+      color: var(--text);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.05);
+    }
+    .ab-pill .ab-trend { font-size: 10px; opacity: .85; }
+    .ab-pill.pos {
+      background: color-mix(in srgb, var(--green) 16%, rgba(255,255,255,0.02));
+      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--green) 38%, transparent);
+      color: color-mix(in srgb, var(--green) 82%, #e0f2f1);
+    }
+    .ab-pill.neg {
+      background: color-mix(in srgb, var(--red) 16%, rgba(255,255,255,0.02));
+      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--red) 42%, transparent);
+      color: color-mix(in srgb, var(--red) 82%, #fee2e2);
+    }
+    .ab-pill.neutral {
+      background: rgba(148,163,184,0.16);
+      box-shadow: inset 0 0 0 1px rgba(148,163,184,0.28);
+      color: #d5dae4;
+    }
 
     /* 涨跌闪烁（进一步降低透明度与冲击感） */
     @media (prefers-reduced-motion: no-preference) {
@@ -262,19 +349,33 @@
     const card = document.createElement('div');
     card.className = 'ab-card';
     card.setAttribute('data-key', m.key);
+    const safeAddr = ADDRRSafe(ADDRS[m.key]);
     card.innerHTML = `
-      <div class="ab-icon" title="点击复制地址">${m.badge}</div>
-      <div class="ab-body">
-        <div class="ab-name">${m.key}</div>
-        <div class="ab-val"><span class="skeleton"></span></div>
-        <div class="ab-sub"><span class="skeleton" style="width:90px;"></span></div>
+      <div class="ab-inner">
+        <div class="ab-header">
+          <div class="ab-icon" title="点击复制地址">${m.badge}</div>
+          <div class="ab-meta">
+            <div class="ab-name">${m.key}</div>
+            <div class="ab-addr" title="${safeAddr ? safeAddr : '地址未配置'}">${safeAddr ? maskAddr(safeAddr) : '地址未配置'}</div>
+          </div>
+        </div>
+        <div class="ab-metrics">
+          <div class="ab-metric">
+            <span class="ab-label">总资产</span>
+            <span class="ab-val"><span class="skeleton" style="width:120px;"></span></span>
+          </div>
+          <div class="ab-metric">
+            <span class="ab-label">PnL</span>
+            <span class="ab-sub"><span class="skeleton" style="width:90px;"></span></span>
+          </div>
+        </div>
       </div>
     `;
     row.appendChild(card);
     cardsByKey.set(m.key, card);
 
     // 初始状态
-    state.set(m.key, { value: null, addr: ADDRRSafe(ADDRS[m.key]) });
+    state.set(m.key, { value: null, addr: safeAddr });
 
     // 复制地址
     card.querySelector('.ab-icon').addEventListener('click', async ()=>{
@@ -378,15 +479,27 @@
     const el = cardsByKey.get(mkey);
     const valEl = el.querySelector('.ab-val');
     const subEl = el.querySelector('.ab-sub');
-    if (value == null) {
-      valEl.innerHTML = '<span class="skeleton" style="width:120px;"></span>';
-      subEl.textContent = s.addr ? '暂不可用' : '地址未配置';
+    const addrEl = el.querySelector('.ab-addr');
+    if (addrEl) {
+      const addr = s.addr;
+      addrEl.textContent = addr ? maskAddr(addr) : '地址未配置';
+      addrEl.setAttribute('title', addr ? addr : '地址未配置');
+    }
+
+    const prev = lastValueMap.get(mkey);
+    if (!s.addr) {
+      valEl.textContent = '—';
+      subEl.innerHTML = '<span class="ab-pill neutral">地址未配置</span>';
+      lastValueMap.delete(mkey);
+    } else if (value == null) {
+      valEl.textContent = '—';
+      subEl.innerHTML = '<span class="ab-pill neutral">暂不可用</span>';
     } else {
-      const prev = lastValueMap.get(mkey);
       valEl.textContent = fmtUSD(value);
       const pnl = value - INITIAL_CAPITAL;
       const pct = pnl / INITIAL_CAPITAL;
-      subEl.innerHTML = `PnL <span class="${pnl>=0?'pos':'neg'}">${fmtUSD(pnl)} · ${fmtPct(pct)}</span>`;
+      const trend = typeof prev === 'number' ? (value > prev ? '▲' : value < prev ? '▼' : '•') : '•';
+      subEl.innerHTML = `<span class="ab-pill ${pnl>=0?'pos':'neg'}"><span class="ab-trend">${trend}</span> ${fmtUSD(pnl)} · ${fmtPct(pct)}</span>`;
 
       // 涨跌闪烁（更柔和）
       if (typeof prev === 'number' && prev !== value) {
@@ -446,6 +559,10 @@
   setInterval(updateStatus, 1000); // 轻量 UI 刷新，不打网络
 
   /** ===== 工具函数 ===== */
+  function maskAddr(addr){
+    if (!addr || addr.length < 10) return addr || '';
+    return `${addr.slice(0, 6)}…${addr.slice(-4)}`;
+  }
   function ADDRRSafe(addr) { return typeof addr === 'string' ? addr.trim() : ''; }
   function fmtUSD(n){ return n==null ? '—' : '$' + n.toLocaleString(undefined,{maximumFractionDigits:2}); }
   function fmtPct(n){ return n==null ? '—' : ((n>=0?'+':'') + (n*100).toFixed(2) + '%'); }
