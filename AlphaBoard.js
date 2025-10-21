@@ -1,6 +1,6 @@
 // ==UserScript==
-// @name         Alpha Board（链上/Small/横排/退避/柔和玻璃）
-// @namespace    https://greasyfork.org/zh-CN/users/alpha-arena
+// @name         Alpha Board（链上盈利数据展示/底部横排暂时/可隐藏/柔和玻璃）
+// @namespace    https://greasyfork.org/zh-CN/users/1211909-amazing-fish
 // @version      1.0.0
 // @description  链上实时账户看板 · 默认最小化 · 按模型独立退避 · 轻量玻璃态 UI · 低饱和 P&L · 横排 6 卡片并展示相对更新时间
 // @match        *://*/*
