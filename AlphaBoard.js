@@ -101,6 +101,31 @@
 
     #ab-topbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
     #ab-left { display:flex; align-items:center; gap:8px; }
+    #ab-jump {
+      pointer-events: auto;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px;
+      height: 26px;
+      border-radius: 8px;
+      border: 1px solid var(--soft);
+      background: linear-gradient(135deg, rgba(255,255,255,0.10), rgba(255,255,255,0.02));
+      color: #c7d2fe;
+      text-decoration: none;
+      transition: background .2s ease, border-color .2s ease, color .2s ease, transform .15s ease;
+    }
+    #ab-jump:hover {
+      background: rgba(255,255,255,0.14);
+      border-color: rgba(255,255,255,0.20);
+      color: #f3f4f6;
+      transform: translateY(-1px);
+    }
+    #ab-jump svg {
+      width: 14px;
+      height: 14px;
+      fill: currentColor;
+    }
     #ab-title { color:#eef1f6; font-size:11px; font-weight:700; letter-spacing:.3px; opacity:.9; cursor: pointer; }
     #ab-status { display:flex; align-items:center; gap:6px; font-size:11px; color:#aeb1b7; }
     .ab-dot { width:8px; height:8px; border-radius:50%; background:#9ca3af; }
@@ -194,6 +219,11 @@
             <span id="ab-time">Syncing…</span>
           </div>
         </div>
+        <a id="ab-jump" href="https://nof1.ai" target="_blank" rel="noopener noreferrer" title="在新窗口打开 nof1.ai" aria-label="打开 nof1.ai">
+          <svg viewBox="0 0 16 16" role="img" aria-hidden="true" focusable="false">
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M5.22 4.22a.75.75 0 0 1 1.06 0L11 8.94V6a.75.75 0 0 1 1.5 0v5a.75.75 0 0 1-.75.75h-5a.75.75 0 0 1 0-1.5h2.94L5.22 5.28a.75.75 0 0 1 0-1.06z"></path>
+          </svg>
+        </a>
       </div>
       <div id="ab-row"></div>
       <div id="ab-toast" role="status" aria-live="polite"></div>
