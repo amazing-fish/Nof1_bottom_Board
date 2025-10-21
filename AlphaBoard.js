@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Alpha Board（链上/Small/横排/退避/柔和玻璃）
 // @namespace    https://greasyfork.org/zh-CN/users/alpha-arena
-// @version      0.5.5
+// @version      0.6.0
 // @description  无记忆 | 默认最小化 | 无外显排名 | 标题一键最小化 | 按模型独立退避(3s→5s→8s→12s) | 仅 Hyperliquid info；横排6卡；轻量玻璃态；P&L 低饱和；卡片含相对更新时间。
 // @match        *://*/*
 // @grant        GM_xmlhttpRequest
@@ -99,10 +99,10 @@
       backdrop-filter: saturate(0.75) blur(3px);
     }
 
-    #ab-topbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
+    #ab-topbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; padding:2px 0; }
     #ab-left { display:flex; align-items:center; gap:8px; }
-    #ab-title { color:#eef1f8; font-size:10.5px; font-weight:700; letter-spacing:.4px; cursor: pointer; text-transform: uppercase; }
-    #ab-status { display:flex; align-items:center; gap:6px; font-size:10px; color:#d3dbea; letter-spacing:.2px; }
+    #ab-title { color:#f7faff; font-size:11px; font-weight:700; letter-spacing:.35px; cursor: pointer; text-transform: uppercase; text-shadow: 0 0 8px rgba(0,0,0,0.35); }
+    #ab-status { display:flex; align-items:center; gap:6px; font-size:10.5px; color:#f0f4ff; letter-spacing:.25px; text-shadow: 0 0 8px rgba(0,0,0,0.32); font-weight:500; }
     .ab-dot { width:8px; height:8px; border-radius:50%; background:#9ca3af; }
     .ab-live  { background: var(--green); box-shadow: 0 0 10px color-mix(in srgb, var(--green) 35%, transparent); }
     .ab-warn  { background: #f59e0b;   box-shadow: 0 0 10px rgba(245,158,11,0.30); }
@@ -116,7 +116,7 @@
       width: 26px;
       height: 26px;
       border-radius: 8px;
-      color: #e6e8ee;
+      color: #f5f7ff;
       text-decoration: none;
       background: rgba(255,255,255,0.05);
       border: 1px solid transparent;
@@ -162,19 +162,20 @@
     .ab-icon {
       width: var(--icon); height: var(--icon);
       border-radius: 9px; display:grid; place-items:center;
-      font-weight:700; font-size:10px; letter-spacing:.5px; color:#f6f8ff;
-      background: rgba(255,255,255,0.12);
-      border: 1px solid rgba(255,255,255,0.22); user-select:none; cursor: pointer;
-      transition: background 160ms ease, border-color 160ms ease, transform 160ms ease;
+      font-weight:700; font-size:10px; letter-spacing:.5px; color:#10131a;
+      background: rgba(248,251,255,0.92);
+      border: 1px solid rgba(255,255,255,0.32); user-select:none; cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.22);
+      transition: background 160ms ease, border-color 160ms ease, transform 160ms ease, box-shadow 160ms ease;
     }
-    .ab-icon:hover { background: rgba(255,255,255,0.16); border-color: rgba(255,255,255,0.26); }
+    .ab-icon:hover { background: rgba(255,255,255,0.98); border-color: rgba(255,255,255,0.4); box-shadow: 0 8px 18px rgba(0,0,0,0.28); }
     .ab-icon:active { transform: scale(0.96); }
     .ab-body { display:flex; flex-direction:column; gap:4px; min-width:0; }
     .ab-head { display:flex; align-items:center; justify-content:space-between; gap:8px; }
-    .ab-name { font-size: var(--fsName); color:#f0f3fa; font-weight:600; letter-spacing:.2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    .ab-time { font-size:9.5px; color:#dce4f2; letter-spacing:.2px; white-space:nowrap; }
-    .ab-val  { font-size: var(--fsVal);  color:#f2f4f8; font-weight:700; letter-spacing:.3px; font-variant-numeric: tabular-nums; }
-    .ab-sub  { font-size: var(--fsSub);  color:#8f99a9; font-variant-numeric: tabular-nums; }
+    .ab-name { font-size: var(--fsName); color:#f7faff; font-weight:600; letter-spacing:.24px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-shadow: 0 0 6px rgba(0,0,0,0.32); }
+    .ab-time { font-size:10px; color:#eef3ff; letter-spacing:.25px; white-space:nowrap; font-weight:500; text-shadow: 0 0 6px rgba(0,0,0,0.30); }
+    .ab-val  { font-size: var(--fsVal);  color:#f9fbff; font-weight:700; letter-spacing:.3px; font-variant-numeric: tabular-nums; text-shadow: 0 0 6px rgba(0,0,0,0.28); }
+    .ab-sub  { font-size: var(--fsSub);  color:#a4afc0; font-variant-numeric: tabular-nums; }
 
     /* ↓ P&L 低饱和绿/红 */
     .ab-sub .pos { color: color-mix(in srgb, var(--green) 82%, #d1fae5); }
