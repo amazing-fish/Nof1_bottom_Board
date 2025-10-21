@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Alpha Board（链上/Small/横排/UX升级）
+// @name         Alpha Board（链上/Small/横排/退避/玻璃态）
 // @namespace    https://greasyfork.org/zh-CN/users/alpha-arena
-// @version      0.4.0
-// @description  仅用 Hyperliquid info 接口；3s 刷新；横向一行显示6模型；左下角“Alpha Board”最小化；平滑名次动画、数值涨跌闪烁、Live状态与失败退避、骨架占位、地址复制、快捷键。
+// @version      0.5.1
+// @description  无记忆 | 默认最小化 | 无外显排名 | 标题一键最小化 | 按模型独立退避(3s→5s→8s→12s) | 仅 Hyperliquid info；横排6卡；涨跌闪烁/玻璃态/地址复制。
 // @match        *://*/*
 // @grant        GM_xmlhttpRequest
 // @grant        GM_addStyle
@@ -14,17 +14,15 @@
 (function () {
   'use strict';
 
-  /** ===== 基本配置 ===== */
-  const BASE_INTERVAL_MS = 3000;          // 基础刷新周期
-  const JITTER_MS = 300;                  // 抖动，避免“齐步走”
-  const MAX_INTERVAL_MS = 12000;          // 失败退避上限
-  const INITIAL_CAPITAL = 10000;          // 初始资金口径
-  const FRESH_THRESH_MS = 15000;          // 超过即标记 Stale
-  const STORE_ADDRS = 'AA_ADDRS_V1';
-  const STORE_COLL  = 'AA_COLLAPSED_V3';
+  /** ===== 常量与默认（无记忆） ===== */
+  const INITIAL_CAPITAL = 10000;     // PnL 基准
+  const FRESH_THRESH_MS = 15000;     // 全局“Stale”阈值（用于顶栏指示）
+  const JITTER_MS = 250;             // 轻微抖动，避免齐步走
+  const BACKOFF_STEPS = [3000, 5000, 8000, 12000]; // 失败退避阶梯
+  let   COLLAPSED = true;            // 默认最小化（不落盘）
 
-  // 默认模型地址（Qwen 留空，手动填）
-  const DEFAULT_ADDRS = {
+  // 默认地址（可直接在此常量区改，不弹窗、不写盘）
+  const ADDRS = {
     'GPT-5': '0x67293D914eAFb26878534571add81F6Bd2D9fE06',
     'Gemini 2.5 Pro': '0x1b7A7D099a670256207a30dD0AE13D35f278010f',
     'Claude Sonnet 4.5': '0x59fA085d106541A834017b97060bcBBb0aa82869',
@@ -32,8 +30,6 @@
     'DeepSeek V3.1': '0xC20aC4Dc4188660cBF555448AF52694CA62b0734',
     'Qwen3-Max': '0x7a8fd8bba33e37361ca6b0cb4518a44681bad2f3'
   };
-  let ADDRS = loadJSON(STORE_ADDRS, DEFAULT_ADDRS);
-  let COLLAPSED = loadJSON(STORE_COLL, false);
 
   const MODELS = [
     { key: 'GPT-5', badge: 'GPT' },
@@ -44,60 +40,59 @@
     { key: 'Qwen3-Max', badge: 'QWN' },
   ];
 
-  /** ===== 样式（Small + 横排 + 动效） ===== */
+  /** ===== 玻璃态 + 透明度优化样式 ===== */
   GM_addStyle(`
     #ab-dock {
-      position: fixed; left: 10px; bottom: 10px; z-index: 2147483647;
+      position: fixed; left: 12px; bottom: 12px; z-index: 2147483647;
       pointer-events: none;
       font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI",
-                   Roboto, "PingFang SC","Microsoft YaHei","Noto Sans CJK SC", Arial;
+                   Roboto,"PingFang SC","Microsoft YaHei","Noto Sans CJK SC", Arial;
       color-scheme: dark;
-      --gap: 6px; --radius: 10px; --blur: 8px;
-      --pY: 6px; --pX: 8px; --icon: 26px; --rank: 16px; --delta: 16px;
+      --gap: 6px; --radius: 12px;
+      --pY: 6px; --pX: 8px; --icon: 26px;
       --fsName: 11px; --fsVal: 14px; --fsSub: 11px;
-      --bg: rgba(18,18,20,0.68);
-      --card: rgba(28,28,32,0.92);
-      --brd: rgba(255,255,255,0.10);
-      --soft: rgba(255,255,255,0.06);
-      --green: #16a34a; --red:#dc2626; --blue:#3b82f6; --text:#e5e7eb;
+      --bg: rgba(16,18,22,0.42);
+      --bg2: rgba(16,18,22,0.28);
+      --card: rgba(28,31,36,0.55);
+      --card-hover: rgba(28,31,36,0.62);
+      --brd: rgba(255,255,255,0.16);
+      --soft: rgba(255,255,255,0.08);
+      --shadow: 0 12px 30px rgba(0,0,0,0.32);
+      --green: #22c55e; --red:#ef4444; --blue:#60a5fa; --text:#e6e8ee;
     }
     #ab-toggle {
       pointer-events: auto;
       display: ${COLLAPSED ? 'inline-flex' : 'none'};
       align-items:center; gap:6px;
-      padding:6px 10px; border-radius:10px;
-      background: rgba(18,18,20,0.75);
+      padding:6px 10px; border-radius:12px;
+      background: linear-gradient(180deg, var(--bg), var(--bg2));
       border:1px solid var(--brd); color:var(--text); font-weight:700; font-size:12px;
-      box-shadow: 0 8px 18px rgba(0,0,0,0.25);
+      box-shadow: var(--shadow);
       cursor: pointer; user-select: none;
+      backdrop-filter: saturate(1.1) blur(10px);
     }
     #ab-wrap {
       pointer-events: auto;
       display: ${COLLAPSED ? 'none' : 'block'};
-      backdrop-filter: blur(var(--blur));
-      background: var(--bg);
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02)) ,
+        radial-gradient(120% 150% at 0% 100%, rgba(96,165,250,0.08), transparent 55%) ,
+        var(--bg);
       border: 1px solid var(--brd);
-      border-radius: 12px;
+      border-radius: 14px;
       padding: 8px 10px;
-      box-shadow: 0 10px 24px rgba(0,0,0,0.28);
+      box-shadow: var(--shadow);
       max-width: min(96vw, 1280px);
+      backdrop-filter: saturate(1.15) blur(12px);
     }
-    #ab-topbar {
-      display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;
-    }
+    #ab-topbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
     #ab-left { display:flex; align-items:center; gap:8px; }
-    #ab-title { color:#e7e9ee; font-size:11px; font-weight:700; letter-spacing:.3px; opacity:.9; }
+    #ab-title { color:#eef1f6; font-size:11px; font-weight:700; letter-spacing:.3px; opacity:.9; cursor: pointer; }
     #ab-status { display:flex; align-items:center; gap:6px; font-size:11px; color:#aeb1b7; }
-    .ab-dot { width:8px; height:8px; border-radius:50%; background:#9ca3af; box-shadow:0 0 0 0 rgba(0,0,0,0.2); }
-    .ab-live  { background: var(--green); }
-    .ab-warn  { background: #f59e0b; }
-    .ab-dead  { background: var(--red); }
-    #ab-actions { display:flex; gap:6px; }
-    .ab-btn {
-      cursor:pointer; padding:3px 7px; border-radius:8px; color:#cbd5e1;
-      border:1px solid var(--soft); background: rgba(255,255,255,0.05); font-size:11px;
-    }
-    .ab-btn:hover { background: rgba(255,255,255,0.09); }
+    .ab-dot { width:8px; height:8px; border-radius:50%; background:#9ca3af; }
+    .ab-live  { background: var(--green); box-shadow: 0 0 12px rgba(34,197,94,0.35); }
+    .ab-warn  { background: #f59e0b;   box-shadow: 0 0 12px rgba(245,158,11,0.35); }
+    .ab-dead  { background: var(--red); box-shadow: 0 0 12px rgba(239,68,68,0.35); }
 
     /* 横向一行 + 滚动 */
     #ab-row {
@@ -107,48 +102,44 @@
       position: relative;
     }
     #ab-row::-webkit-scrollbar { height: 6px; }
-    #ab-row::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 999px; }
+    #ab-row::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.16); border-radius: 999px; }
 
     .ab-card {
       flex: 0 0 auto;
       min-width: 168px; max-width: 220px;
       position: relative; display:flex; align-items:center; gap:8px;
       padding: var(--pY) var(--pX);
-      background: var(--card); border: 1px solid var(--brd); border-radius: var(--radius);
+      background: var(--card);
+      border: 1px solid var(--brd);
+      border-radius: var(--radius);
+      transition: transform 240ms ease, box-shadow 240ms ease, background 160ms ease, border-color 160ms ease;
       will-change: transform;
-      transition: transform 250ms ease, box-shadow 250ms ease;
     }
-    .ab-rank {
-      position:absolute; left:-5px; top:-5px; width: var(--rank); height: var(--rank);
-      border-radius: 50%; background: var(--blue); color:#fff; font-weight:700;
-      display:flex; align-items:center; justify-content:center; font-size:10px;
-      box-shadow: 0 4px 10px rgba(59,130,246,0.35);
+    .ab-card:hover {
+      background: var(--card-hover);
+      border-color: rgba(255,255,255,0.22);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.32);
     }
-    .ab-delta {
-      position:absolute; right:-5px; top:-5px; height: var(--delta);
-      min-width: 20px; padding: 0 6px; border-radius: 999px;
-      display:flex; align-items:center; justify-content:center;
-      font-size:10px; font-weight:700; color:#fff;
-    }
-    .ab-delta.up { background: var(--green); } .ab-delta.down { background: var(--red); }
 
     .ab-icon {
       width: var(--icon); height: var(--icon);
       border-radius: 8px; display:grid; place-items:center;
       font-weight:800; font-size:11px; color:#e5e7eb;
-      background: linear-gradient(135deg, rgba(255,255,255,0.10), rgba(255,255,255,0.03));
+      background:
+        linear-gradient(135deg, rgba(255,255,255,0.12), rgba(255,255,255,0.03));
       border: 1px solid var(--soft); user-select:none; cursor: pointer;
+      box-shadow: inset 0 0 8px rgba(255,255,255,0.06);
     }
     .ab-body { display:grid; gap:2px; }
-    .ab-name { font-size: var(--fsName); color:#aeb1b7; font-weight: 600; letter-spacing:.2px; }
+    .ab-name { font-size: var(--fsName); color:#b8bec8; font-weight: 600; letter-spacing:.2px; }
     .ab-val  { font-size: var(--fsVal);  color:#f3f4f6; font-weight: 800; letter-spacing:.2px; font-variant-numeric: tabular-nums; }
-    .ab-sub  { font-size: var(--fsSub);  color:#98a2b3; font-variant-numeric: tabular-nums; }
+    .ab-sub  { font-size: var(--fsSub);  color:#9aa4b2; font-variant-numeric: tabular-nums; }
     .ab-sub .pos { color: var(--green); } .ab-sub .neg { color: var(--red); }
 
-    /* 涨跌闪烁 */
+    /* 涨跌闪烁（透明度更柔和） */
     @media (prefers-reduced-motion: no-preference) {
-      .flash-up   { box-shadow: 0 0 0 2px rgba(22,163,74,0.35) inset; }
-      .flash-down { box-shadow: 0 0 0 2px rgba(220,38,38,0.35) inset; }
+      .flash-up   { box-shadow: 0 0 0 2px rgba(34,197,94,0.28) inset; }
+      .flash-down { box-shadow: 0 0 0 2px rgba(239,68,68,0.28) inset; }
     }
 
     /* 骨架占位 */
@@ -166,7 +157,7 @@
     /* Toast */
     #ab-toast {
       position: absolute; left: 8px; bottom: 100%; margin-bottom: 8px;
-      background: rgba(0,0,0,0.8); color:#fff; padding:6px 8px; border-radius:8px;
+      background: rgba(0,0,0,0.78); color:#fff; padding:6px 8px; border-radius:8px;
       font-size:11px; pointer-events:none; opacity:0; transform: translateY(6px);
       transition: opacity .2s ease, transform .2s ease;
     }
@@ -181,15 +172,11 @@
     <div id="ab-wrap" role="region" aria-label="Alpha Board 实时看板">
       <div id="ab-topbar">
         <div id="ab-left">
-          <span id="ab-title">Alpha Board · 链上实时</span>
+          <span id="ab-title" title="点击最小化">Alpha Board · 链上实时</span>
           <div id="ab-status" aria-live="polite">
             <span class="ab-dot" id="ab-dot"></span>
             <span id="ab-time">Syncing…</span>
           </div>
-        </div>
-        <div id="ab-actions">
-          <button id="ab-gear" class="ab-btn" title="配置地址（Alt+G）">⚙</button>
-          <button id="ab-min"  class="ab-btn" title="最小化（Alt+B）">▾</button>
         </div>
       </div>
       <div id="ab-row"></div>
@@ -201,66 +188,31 @@
   const wrap   = dock.querySelector('#ab-wrap');
   const row    = dock.querySelector('#ab-row');
   const toggle = dock.querySelector('#ab-toggle');
+  const title  = dock.querySelector('#ab-title');
   const dot    = dock.querySelector('#ab-dot');
   const timeEl = dock.querySelector('#ab-time');
   const toast  = dock.querySelector('#ab-toast');
 
-  // 展开/收起
-  dock.querySelector('#ab-min').addEventListener('click', minimize);
+  // 展开/收起（默认最小化）
+  function minimize(){ COLLAPSED = true;  wrap.style.display = 'none';  toggle.style.display = 'inline-flex'; }
+  function expand()  { COLLAPSED = false; wrap.style.display = 'block'; toggle.style.display = 'none'; }
   toggle.addEventListener('click', expand);
+  title.addEventListener('click',  minimize);
+  minimize();
 
-  function minimize(){
-    COLLAPSED = true;
-    wrap.style.display = 'none';
-    toggle.style.display = 'inline-flex';
-    saveJSON(STORE_COLL, COLLAPSED);
-  }
-  function expand(){
-    COLLAPSED = false;
-    wrap.style.display = 'block';
-    toggle.style.display = 'none';
-    saveJSON(STORE_COLL, COLLAPSED);
-  }
-  if (COLLAPSED) minimize(); else expand();
-
-  // 快捷键
-  window.addEventListener('keydown', (e)=>{
-    if (e.altKey && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
-      if (e.code === 'KeyB') { e.preventDefault(); COLLAPSED ? expand() : minimize(); }
-      if (e.code === 'KeyG') { e.preventDefault(); openConfig(); }
-    }
-  });
-
-  // 地址配置
-  dock.querySelector('#ab-gear').addEventListener('click', openConfig);
-  function openConfig(){
-    const current = { ...ADDRS };
-    const lines = MODELS.map(m => `${m.key}=${current[m.key] || ''}`).join('\n');
-    const msg = `按行编辑“模型=地址”，非法或留空将忽略：\n示例：DeepSeek V3.1=0xC20aC4Dc4188660cBF555448AF52694CA62b0734`;
-    const text = prompt(msg, lines);
-    if (text == null) return;
-    const out = {};
-    text.split('\n').forEach(line => {
-      const i = line.indexOf('=');
-      if (i <= 0) return;
-      const key = line.slice(0, i).trim();
-      const addr = line.slice(i + 1).trim();
-      out[key] = addr;
-    });
-    ADDRS = { ...ADDRS, ...out };
-    saveJSON(STORE_ADDRS, ADDRS);
-    schedule(0); // 立即刷新一次
-  }
-
-  /** ===== 卡片创建（一次性） ===== */
+  /** ===== 状态与卡片 ===== */
+  const state = new Map();              // key -> { value, addr }
   const cardsByKey = new Map();
-  MODELS.forEach((m, idx) => {
+  let   lastOrder = MODELS.map(m=>m.key);
+  let   lastGlobalSuccess = 0;
+  let   seenAnySuccess = false;
+  const lastValueMap = new Map();       // 涨跌闪烁使用
+
+  MODELS.forEach((m) => {
     const card = document.createElement('div');
     card.className = 'ab-card';
     card.setAttribute('data-key', m.key);
     card.innerHTML = `
-      <div class="ab-rank">—</div>
-      <div class="ab-delta" style="display:none"></div>
       <div class="ab-icon" title="点击复制地址">${m.badge}</div>
       <div class="ab-body">
         <div class="ab-name">${m.key}</div>
@@ -271,9 +223,12 @@
     row.appendChild(card);
     cardsByKey.set(m.key, card);
 
+    // 初始状态
+    state.set(m.key, { value: null, addr: ADDRRSafe(ADDRS[m.key]) });
+
     // 复制地址
     card.querySelector('.ab-icon').addEventListener('click', async ()=>{
-      const addr = ADDRRSafe(ADDRS[m.key]);
+      const addr = state.get(m.key).addr;
       if (!addr) { showToast('未配置地址'); return; }
       try {
         if (typeof GM_setClipboard === 'function') GM_setClipboard(addr);
@@ -283,27 +238,7 @@
     });
   });
 
-  /** ===== 数据拉取 & 退避调度 ===== */
-  let intervalMs = BASE_INTERVAL_MS;
-  let lastSuccess = 0;
-  let timer = null;
-  let lastOrder = MODELS.map(m=>m.key);
-  const lastValueMap = new Map(); // 用于涨跌闪烁
-
-  function schedule(delay) {
-    if (timer) clearTimeout(timer);
-    const jitter = (Math.random()*2-1) * JITTER_MS;
-    timer = setTimeout(tick, Math.max(0, (delay ?? intervalMs) + jitter));
-  }
-
-  function setStatus(ok) {
-    const now = Date.now();
-    if (ok) lastSuccess = now;
-    const stale = (now - lastSuccess) > FRESH_THRESH_MS;
-    dot.className = 'ab-dot ' + (ok ? (stale ? 'ab-warn' : 'ab-live') : 'ab-dead');
-    timeEl.textContent = ok ? (stale ? 'Stale' : ('更新 ' + fmtTime(now))) : 'Error';
-  }
-
+  /** ===== 网络层 ===== */
   function gmPostJson(url, data) {
     return new Promise((resolve, reject) => {
       GM_xmlhttpRequest({
@@ -322,114 +257,146 @@
   async function fetchAccountValue(address) {
     if (!address || !/^0x[a-fA-F0-9]{40}$/i.test(address)) return null;
     try {
-      const resp = await gmPostJson('https://api.hyperliquid.xyz/info', { type: 'clearinghouseState', user: address, dex: '' });
+      const resp = await gmPostJson('https://api.hyperliquid.xyz/info', {
+        type: 'clearinghouseState', user: address, dex: ''
+      });
       const v = resp?.marginSummary?.accountValue || resp?.crossMarginSummary?.accountValue;
       const num = v ? parseFloat(v) : NaN;
       return Number.isFinite(num) ? num : null;
     } catch { return null; }
   }
 
-  async function tick() {
-    try {
-      const results = await Promise.all(MODELS.map(async m=>{
-        const addr = ADDRRSafe(ADDRS[m.key]);
-        const val = await fetchAccountValue(addr);
-        return { key: m.key, badge: m.badge, addr, value: val };
-      }));
-      render(results);
-      setStatus(true);
-      intervalMs = BASE_INTERVAL_MS; // 成功则重置退避
-      schedule();
-    } catch (e) {
-      setStatus(false);
-      intervalMs = Math.min(MAX_INTERVAL_MS, Math.ceil(intervalMs * 1.7));
-      schedule();
+  /** ===== 按模型独立轮询 + 失败退避 ===== */
+  const pollers = new Map(); // key -> { step, timer }
+  function startPoller(mkey){
+    const rec = { step: 0, timer: null };
+    pollers.set(mkey, rec);
+
+    const run = async () => {
+      const s = state.get(mkey);
+      const addr = s.addr;
+
+      // 无地址时：视为“不可用”，降频到最高 12s
+      if (!addr) {
+        updateCard(mkey, null);
+        rec.step = BACKOFF_STEPS.length - 1;
+        scheduleNext();
+        return;
+      }
+
+      const val = await fetchAccountValue(addr);
+      if (val == null) {
+        // 失败：退避升级
+        rec.step = Math.min(rec.step + 1, BACKOFF_STEPS.length - 1);
+      } else {
+        // 成功：重置退避 & 更新全局状态
+        rec.step = 0;
+        seenAnySuccess = true;
+        lastGlobalSuccess = Date.now();
+        updateCard(mkey, val);
+        updateStatus(); // 刷新顶栏状态
+      }
+      scheduleNext();
+    };
+
+    function scheduleNext(){
+      const base = BACKOFF_STEPS[rec.step];
+      const jitter = (Math.random() * 2 - 1) * JITTER_MS;
+      clearTimeout(rec.timer);
+      rec.timer = setTimeout(run, Math.max(0, base + jitter));
     }
+
+    scheduleNext();
   }
 
-  /** ===== 渲染（FLIP 动画 + 涨跌闪烁） ===== */
-  function render(items) {
-    // 排名
+  // 为所有模型启动独立轮询
+  MODELS.forEach(m => startPoller(m.key));
+
+  /** ===== 渲染 ===== */
+  function updateCard(mkey, value){
+    const s = state.get(mkey);
+    s.value = value;
+
+    // 先记录旧位置信息（用于 FLIP 动画）
+    const firstRects = new Map();
+    MODELS.forEach(m=>{
+      const el = cardsByKey.get(m.key);
+      firstRects.set(m.key, el.getBoundingClientRect());
+    });
+
+    // 更新本卡展示
+    const el = cardsByKey.get(mkey);
+    const valEl = el.querySelector('.ab-val');
+    const subEl = el.querySelector('.ab-sub');
+    if (value == null) {
+      valEl.innerHTML = '<span class="skeleton" style="width:120px;"></span>';
+      subEl.textContent = s.addr ? '暂不可用' : '地址未配置';
+    } else {
+      const prev = lastValueMap.get(mkey);
+      valEl.textContent = fmtUSD(value);
+      const pnl = value - INITIAL_CAPITAL;
+      const pct = pnl / INITIAL_CAPITAL;
+      subEl.innerHTML = `PnL <span class="${pnl>=0?'pos':'neg'}">${fmtUSD(pnl)} · ${fmtPct(pct)}</span>`;
+
+      // 涨跌闪烁
+      if (typeof prev === 'number' && prev !== value) {
+        el.classList.remove('flash-up','flash-down');
+        void el.offsetWidth;
+        el.classList.add(prev < value ? 'flash-up' : 'flash-down');
+        setTimeout(()=>el.classList.remove('flash-up','flash-down'), 260);
+      }
+      lastValueMap.set(mkey, value);
+    }
+
+    // 重排：按最新值排序（不显示名次，仅内部排序）
+    const items = MODELS.map(m => ({ key: m.key, value: state.get(m.key).value }));
     items.sort((a,b)=>(b.value??-Infinity)-(a.value??-Infinity));
     const newOrder = items.map(i=>i.key);
 
-    // 记录旧位置
-    const firstRects = new Map();
-    items.forEach(i=>{
-      const el = cardsByKey.get(i.key);
-      firstRects.set(i.key, el.getBoundingClientRect());
-    });
-
-    // 更新内容
-    items.forEach((it, idx)=>{
-      const el = cardsByKey.get(it.key);
-      el.querySelector('.ab-rank').textContent = (idx+1);
-
-      // 位次变化徽标
-      const delta = lastOrder.indexOf(it.key) - idx;
-      const dEl = el.querySelector('.ab-delta');
-      if (delta > 0) { dEl.textContent = '▲'+delta; dEl.className = 'ab-delta up'; dEl.style.display=''; }
-      else if (delta < 0) { dEl.textContent = '▼'+(-delta); dEl.className = 'ab-delta down'; dEl.style.display=''; }
-      else { dEl.style.display='none'; }
-
-      // 数值 & PnL
-      const valEl = el.querySelector('.ab-val');
-      const subEl = el.querySelector('.ab-sub');
-      if (it.value == null) {
-        valEl.innerHTML = '<span class="skeleton" style="width:120px;"></span>';
-        subEl.textContent = it.addr ? '暂不可用' : '地址未配置';
-      } else {
-        const prev = lastValueMap.get(it.key);
-        valEl.textContent = fmtUSD(it.value);
-        const pnl = it.value - INITIAL_CAPITAL;
-        const pct = pnl / INITIAL_CAPITAL;
-        subEl.innerHTML = `PnL <span class="${pnl>=0?'pos':'neg'}">${fmtUSD(pnl)} · ${fmtPct(pct)}</span>`;
-
-        // 涨跌闪烁
-        if (typeof prev === 'number' && prev !== it.value) {
-          el.classList.remove('flash-up','flash-down');
-          void el.offsetWidth; // reflow
-          el.classList.add(prev < it.value ? 'flash-up' : 'flash-down');
-          setTimeout(()=>el.classList.remove('flash-up','flash-down'), 260);
-        }
-        lastValueMap.set(it.key, it.value);
-      }
-    });
-
-    // 根据新排序重排 DOM（FLIP）
     const els = items.map(i=>cardsByKey.get(i.key));
-    // 计算位移前后的差
     const lastRects = new Map();
     els.forEach(el=>{
       const key = el.getAttribute('data-key');
       lastRects.set(key, firstRects.get(key));
     });
-    // 实际重排
-    els.forEach((el, i)=> row.appendChild(el));
+    els.forEach((el)=> row.appendChild(el));
 
-    // 做 FLIP 动画
     els.forEach(el=>{
       const key = el.getAttribute('data-key');
       const first = lastRects.get(key);
-      const last = el.getBoundingClientRect();
-      const dx = first.left - last.left;
-      const dy = first.top  - last.top;
-      if (dx || dy) {
-        el.style.transform = `translate(${dx}px, ${dy}px)`;
-        el.getBoundingClientRect(); // 强制 reflow
-        el.style.transition = 'transform 250ms ease';
-        el.style.transform = '';
-        el.addEventListener('transitionend', ()=>{ el.style.transition=''; }, { once:true });
+      const last  = el.getBoundingClientRect();
+      if (first) {
+        const dx = first.left - last.left;
+        const dy = first.top  - last.top;
+        if (dx || dy) {
+          el.style.transform = `translate(${dx}px, ${dy}px)`;
+          el.getBoundingClientRect();
+          el.style.transition = 'transform 240ms ease';
+          el.style.transform = '';
+          el.addEventListener('transitionend', ()=>{ el.style.transition=''; }, { once:true });
+        }
       }
     });
 
     lastOrder = newOrder;
   }
 
+  /** ===== 顶栏状态：Live / Stale / Dead ===== */
+  function updateStatus(){
+    const now = Date.now();
+    if (!seenAnySuccess) {
+      dot.className = 'ab-dot ab-dead';
+      timeEl.textContent = 'No data';
+      return;
+    }
+    const stale = (now - lastGlobalSuccess) > FRESH_THRESH_MS;
+    dot.className = 'ab-dot ' + (stale ? 'ab-warn' : 'ab-live');
+    timeEl.textContent = (stale ? 'Stale' : ('更新 ' + fmtTime(now)));
+  }
+  setInterval(updateStatus, 1000); // 轻量 UI 刷新，不打网络
+
   /** ===== 工具函数 ===== */
   function ADDRRSafe(addr) { return typeof addr === 'string' ? addr.trim() : ''; }
-  function loadJSON(k, fallback){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : fallback; } catch{ return fallback; } }
-  function saveJSON(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); } catch{} }
   function fmtUSD(n){ return n==null ? '—' : '$' + n.toLocaleString(undefined,{maximumFractionDigits:2}); }
   function fmtPct(n){ return n==null ? '—' : ((n>=0?'+':'') + (n*100).toFixed(2) + '%'); }
   function fmtTime(ts){
@@ -442,7 +409,4 @@
     clearTimeout(showToast._t);
     showToast._t = setTimeout(()=>toast.classList.remove('show'), 1200);
   }
-
-  /** ===== 启动 ===== */
-  schedule(0);
 })();
