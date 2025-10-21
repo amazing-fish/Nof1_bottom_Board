@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Alpha Board（链上/Small/横排/退避/柔和玻璃）
 // @namespace    https://greasyfork.org/zh-CN/users/alpha-arena
-// @version      0.5.3
+// @version      0.5.4
 // @description  无记忆 | 默认最小化 | 无外显排名 | 标题一键最小化 | 按模型独立退避(3s→5s→8s→12s) | 仅 Hyperliquid info；横排6卡；轻量玻璃态；P&L 低饱和；卡片含相对更新时间。
 // @match        *://*/*
 // @grant        GM_xmlhttpRequest
@@ -61,9 +61,9 @@
       --soft: rgba(255,255,255,0.08);
       --shadow: 0 12px 30px rgba(0,0,0,0.2);
 
-      /* ↓↓↓ 低饱和版本绿/红（P&L + 状态点 + 闪烁） ↓↓↓ */
-      --green: hsl(142 45% 48% / 1);  /* 较 #22c55e 降饱和、略暗 */
-      --red:   hsl(0   58% 56% / 1);  /* 较 #ef4444 降饱和、略暗 */
+      /* ↓↓↓ 低饱和柔和绿/红（P&L + 状态点 + 闪烁） ↓↓↓ */
+      --green: rgb(230,255,236);
+      --red:   rgb(225,235,233);
       --blue:  #60a5fa;
       --text:  #e6e8ee;
     }
@@ -171,8 +171,8 @@
     .ab-icon:active { transform: scale(0.96); }
     .ab-body { display:flex; flex-direction:column; gap:4px; min-width:0; }
     .ab-head { display:flex; align-items:center; justify-content:space-between; gap:8px; }
-    .ab-name { font-size: var(--fsName); color:#c6ccd6; font-weight:600; letter-spacing:.2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    .ab-time { font-size:9.5px; color:#7b8594; letter-spacing:.2px; white-space:nowrap; }
+    .ab-name { font-size: var(--fsName); color:#f0f3fa; font-weight:600; letter-spacing:.2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .ab-time { font-size:9.5px; color:#aab4c3; letter-spacing:.2px; white-space:nowrap; }
     .ab-val  { font-size: var(--fsVal);  color:#f2f4f8; font-weight:700; letter-spacing:.3px; font-variant-numeric: tabular-nums; }
     .ab-sub  { font-size: var(--fsSub);  color:#8f99a9; font-variant-numeric: tabular-nums; }
 
