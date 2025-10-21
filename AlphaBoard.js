@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Alpha Board（链上/Small/横排/退避/玻璃态）
+// @name         Alpha Board（链上/Small/横排/退避/柔和玻璃）
 // @namespace    https://greasyfork.org/zh-CN/users/alpha-arena
-// @version      0.5.1
-// @description  无记忆 | 默认最小化 | 无外显排名 | 标题一键最小化 | 按模型独立退避(3s→5s→8s→12s) | 仅 Hyperliquid info；横排6卡；涨跌闪烁/玻璃态/地址复制。
+// @version      0.5.2
+// @description  无记忆 | 默认最小化 | 无外显排名 | 标题一键最小化 | 按模型独立退避(3s→5s→8s→12s) | 仅 Hyperliquid info；横排6卡；更高透明度/更少玻璃态；P&L 绿/红降饱和。
 // @match        *://*/*
 // @grant        GM_xmlhttpRequest
 // @grant        GM_addStyle
@@ -40,7 +40,7 @@
     { key: 'Qwen3-Max', badge: 'QWN' },
   ];
 
-  /** ===== 玻璃态 + 透明度优化样式 ===== */
+  /** ===== 玻璃态 + 透明度优化样式（更透、更克制） ===== */
   GM_addStyle(`
     #ab-dock {
       position: fixed; left: 12px; bottom: 12px; z-index: 2147483647;
@@ -51,15 +51,24 @@
       --gap: 6px; --radius: 12px;
       --pY: 6px; --pX: 8px; --icon: 26px;
       --fsName: 11px; --fsVal: 14px; --fsSub: 11px;
-      --bg: rgba(16,18,22,0.42);
-      --bg2: rgba(16,18,22,0.28);
-      --card: rgba(28,31,36,0.55);
-      --card-hover: rgba(28,31,36,0.62);
-      --brd: rgba(255,255,255,0.16);
-      --soft: rgba(255,255,255,0.08);
-      --shadow: 0 12px 30px rgba(0,0,0,0.32);
-      --green: #22c55e; --red:#ef4444; --blue:#60a5fa; --text:#e6e8ee;
+
+      /* ↓↓↓ 降低玻璃态：整体更通透，blur/saturate 更低 ↓↓↓ */
+      --bg: rgba(16,18,22,0.28);
+      --bg2: rgba(16,18,22,0.16);
+      --card: rgba(28,31,36,0.38);
+      --card-hover: rgba(28,31,36,0.46);
+      --brd: rgba(255,255,255,0.12);
+      --soft: rgba(255,255,255,0.06);
+      --shadow: 0 10px 24px rgba(0,0,0,0.26);
+
+      /* ↓↓↓ 低饱和版本绿/红（P&L + 状态点 + 闪烁） ↓↓↓ */
+      --green: hsl(142 45% 48% / 1);  /* 较 #22c55e 降饱和、略暗 */
+      --red:   hsl(0   58% 56% / 1);  /* 较 #ef4444 降饱和、略暗 */
+      --blue:  #60a5fa;
+      --text:  #e6e8ee;
     }
+
+    /* 展开按钮：更透、轻玻璃 */
     #ab-toggle {
       pointer-events: auto;
       display: ${COLLAPSED ? 'inline-flex' : 'none'};
@@ -69,30 +78,35 @@
       border:1px solid var(--brd); color:var(--text); font-weight:700; font-size:12px;
       box-shadow: var(--shadow);
       cursor: pointer; user-select: none;
-      backdrop-filter: saturate(1.1) blur(10px);
+      backdrop-filter: saturate(0.9) blur(4px);
+      transition: background .2s ease, border-color .2s ease, transform .15s ease;
     }
+    #ab-toggle:hover { border-color: rgba(255,255,255,0.18); transform: translateY(-1px); }
+
+    /* 面板主体：更透、少 blur、少 saturate */
     #ab-wrap {
       pointer-events: auto;
       display: ${COLLAPSED ? 'none' : 'block'};
       background:
-        linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02)) ,
-        radial-gradient(120% 150% at 0% 100%, rgba(96,165,250,0.08), transparent 55%) ,
+        linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.015)) ,
+        radial-gradient(120% 150% at 0% 100%, rgba(96,165,250,0.06), transparent 55%) ,
         var(--bg);
       border: 1px solid var(--brd);
       border-radius: 14px;
       padding: 8px 10px;
       box-shadow: var(--shadow);
       max-width: min(96vw, 1280px);
-      backdrop-filter: saturate(1.15) blur(12px);
+      backdrop-filter: saturate(0.9) blur(4px);
     }
+
     #ab-topbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
     #ab-left { display:flex; align-items:center; gap:8px; }
     #ab-title { color:#eef1f6; font-size:11px; font-weight:700; letter-spacing:.3px; opacity:.9; cursor: pointer; }
     #ab-status { display:flex; align-items:center; gap:6px; font-size:11px; color:#aeb1b7; }
     .ab-dot { width:8px; height:8px; border-radius:50%; background:#9ca3af; }
-    .ab-live  { background: var(--green); box-shadow: 0 0 12px rgba(34,197,94,0.35); }
-    .ab-warn  { background: #f59e0b;   box-shadow: 0 0 12px rgba(245,158,11,0.35); }
-    .ab-dead  { background: var(--red); box-shadow: 0 0 12px rgba(239,68,68,0.35); }
+    .ab-live  { background: var(--green); box-shadow: 0 0 10px color-mix(in srgb, var(--green) 35%, transparent); }
+    .ab-warn  { background: #f59e0b;   box-shadow: 0 0 10px rgba(245,158,11,0.30); }
+    .ab-dead  { background: var(--red); box-shadow: 0 0 10px color-mix(in srgb, var(--red) 35%, transparent); }
 
     /* 横向一行 + 滚动 */
     #ab-row {
@@ -117,29 +131,31 @@
     }
     .ab-card:hover {
       background: var(--card-hover);
-      border-color: rgba(255,255,255,0.22);
-      box-shadow: 0 8px 24px rgba(0,0,0,0.32);
+      border-color: rgba(255,255,255,0.18);
+      box-shadow: 0 8px 22px rgba(0,0,0,0.28);
     }
 
     .ab-icon {
       width: var(--icon); height: var(--icon);
       border-radius: 8px; display:grid; place-items:center;
       font-weight:800; font-size:11px; color:#e5e7eb;
-      background:
-        linear-gradient(135deg, rgba(255,255,255,0.12), rgba(255,255,255,0.03));
+      background: linear-gradient(135deg, rgba(255,255,255,0.10), rgba(255,255,255,0.02));
       border: 1px solid var(--soft); user-select:none; cursor: pointer;
-      box-shadow: inset 0 0 8px rgba(255,255,255,0.06);
+      box-shadow: inset 0 0 6px rgba(255,255,255,0.05);
     }
     .ab-body { display:grid; gap:2px; }
     .ab-name { font-size: var(--fsName); color:#b8bec8; font-weight: 600; letter-spacing:.2px; }
     .ab-val  { font-size: var(--fsVal);  color:#f3f4f6; font-weight: 800; letter-spacing:.2px; font-variant-numeric: tabular-nums; }
     .ab-sub  { font-size: var(--fsSub);  color:#9aa4b2; font-variant-numeric: tabular-nums; }
-    .ab-sub .pos { color: var(--green); } .ab-sub .neg { color: var(--red); }
 
-    /* 涨跌闪烁（透明度更柔和） */
+    /* ↓ P&L 低饱和绿/红 */
+    .ab-sub .pos { color: color-mix(in srgb, var(--green) 82%, #d1fae5); }
+    .ab-sub .neg { color: color-mix(in srgb, var(--red) 82%,   #fee2e2); }
+
+    /* 涨跌闪烁（进一步降低透明度与冲击感） */
     @media (prefers-reduced-motion: no-preference) {
-      .flash-up   { box-shadow: 0 0 0 2px rgba(34,197,94,0.28) inset; }
-      .flash-down { box-shadow: 0 0 0 2px rgba(239,68,68,0.28) inset; }
+      .flash-up   { box-shadow: 0 0 0 2px color-mix(in srgb, var(--green) 18%, transparent) inset; }
+      .flash-down { box-shadow: 0 0 0 2px color-mix(in srgb, var(--red)   18%, transparent) inset; }
     }
 
     /* 骨架占位 */
@@ -338,7 +354,7 @@
       const pct = pnl / INITIAL_CAPITAL;
       subEl.innerHTML = `PnL <span class="${pnl>=0?'pos':'neg'}">${fmtUSD(pnl)} · ${fmtPct(pct)}</span>`;
 
-      // 涨跌闪烁
+      // 涨跌闪烁（更柔和）
       if (typeof prev === 'number' && prev !== value) {
         el.classList.remove('flash-up','flash-down');
         void el.offsetWidth;
