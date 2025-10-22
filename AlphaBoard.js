@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Alpha Board（链上盈利数据展示/底部横排暂时/可隐藏/柔和玻璃）
 // @namespace    https://greasyfork.org/zh-CN/users/1211909-amazing-fish
-// @version      1.0.2
+// @version      1.0.3
 // @description  链上实时账户看板 · 默认最小化 · 按模型独立退避 · 轻量玻璃态 UI · 低饱和 P&L · 横排 6 卡片并展示相对更新时间
 // @match        *://*/*
 // @grant        GM_xmlhttpRequest
@@ -15,7 +15,7 @@
   'use strict';
 
   /**
-   * Alpha Board 1.0.2
+   * Alpha Board 1.0.3
    * ------------------
    *  - 针对多模型地址的链上账户价值聚合看板
    *  - 以 Hyperliquid API 为数据源，独立退避拉取、无本地持久化
@@ -60,7 +60,7 @@
                    Roboto,"PingFang SC","Microsoft YaHei","Noto Sans CJK SC", Arial;
       color-scheme: dark;
       --gap: 8px; --radius: 14px;
-      --pY: 8px; --pX: 12px; --icon: 29px;
+      --pY: 8px; --pX: 12px; --icon: 32px;
       --fsName: 10px; --fsVal: 13.5px; --fsSub: 11px;
 
       /* ↓↓↓ 更低存在感的玻璃态（降低 blur / saturate / 亮度） ↓↓↓ */
@@ -104,7 +104,7 @@
         var(--bg);
       border: 1px solid rgba(255,255,255,0.09);
       border-radius: 16px;
-      padding: 8px 12px 10px;
+      padding: 6px 12px 8px;
       box-shadow: 0 14px 30px rgba(0,0,0,0.24);
       max-width: min(96vw, 1280px);
       backdrop-filter: saturate(0.75) blur(3px);
@@ -116,10 +116,10 @@
     #ab-dock.ab-collapsed #ab-toggle { display: inline-flex; }
     #ab-dock.ab-collapsed #ab-wrap { display: none; }
 
-    #ab-topbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; padding:2px 0; }
+    #ab-topbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:4px; padding:0; }
     #ab-left { display:flex; align-items:center; gap:8px; }
     #ab-title { color:#f7faff; font-size:11px; font-weight:700; letter-spacing:.35px; cursor: pointer; text-transform: uppercase; text-shadow: 0 0 8px rgba(0,0,0,0.35); }
-    #ab-status { display:flex; align-items:center; gap:6px; font-size:10.5px; color:#f0f4ff; letter-spacing:.25px; text-shadow: 0 0 8px rgba(0,0,0,0.32); font-weight:500; }
+    #ab-status { display:flex; align-items:center; gap:5px; font-size:10.5px; color:#f0f4ff; letter-spacing:.25px; text-shadow: 0 0 8px rgba(0,0,0,0.32); font-weight:500; line-height:1; white-space:nowrap; }
     .ab-dot { width:8px; height:8px; border-radius:50%; background:#9ca3af; }
     .ab-live  { background: var(--green); box-shadow: 0 0 10px color-mix(in srgb, var(--green) 35%, transparent); }
     .ab-warn  { background: #f59e0b;   box-shadow: 0 0 10px rgba(245,158,11,0.30); }
@@ -153,7 +153,7 @@
       overflow-y: visible;
       scrollbar-width: thin;
       max-width: min(96vw, 1280px);
-      padding: 0 12px 10px 12px;
+      padding: 0 12px 8px 12px;
       margin: 0;
     }
     #ab-row-viewport::-webkit-scrollbar { height: 6px; }
