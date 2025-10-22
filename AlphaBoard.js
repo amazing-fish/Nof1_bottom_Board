@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Alpha Board（链上盈利数据展示/底部横排暂时/可隐藏/柔和玻璃）
 // @namespace    https://greasyfork.org/zh-CN/users/1211909-amazing-fish
-// @version      1.0.0
+// @version      1.0.1
 // @description  链上实时账户看板 · 默认最小化 · 按模型独立退避 · 轻量玻璃态 UI · 低饱和 P&L · 横排 6 卡片并展示相对更新时间
 // @match        *://*/*
 // @grant        GM_xmlhttpRequest
@@ -15,7 +15,7 @@
   'use strict';
 
   /**
-   * Alpha Board 1.0.0
+   * Alpha Board 1.0.1
    * ------------------
    *  - 针对多模型地址的链上账户价值聚合看板
    *  - 以 Hyperliquid API 为数据源，独立退避拉取、无本地持久化
@@ -60,7 +60,7 @@
                    Roboto,"PingFang SC","Microsoft YaHei","Noto Sans CJK SC", Arial;
       color-scheme: dark;
       --gap: 8px; --radius: 14px;
-      --pY: 10px; --pX: 12px; --icon: 24px;
+      --pY: 10px; --pX: 12px; --icon: 28px;
       --fsName: 10px; --fsVal: 13.5px; --fsSub: 11px;
 
       /* ↓↓↓ 更低存在感的玻璃态（降低 blur / saturate / 亮度） ↓↓↓ */
@@ -82,7 +82,7 @@
     /* 展开按钮：更透、轻玻璃 */
     #ab-toggle {
       pointer-events: auto;
-      display: ${COLLAPSED ? 'inline-flex' : 'none'};
+      display: inline-flex;
       align-items:center; gap:6px;
       padding:5px 9px; border-radius:11px;
       background: rgba(18,21,28,0.24);
@@ -95,9 +95,11 @@
     #ab-toggle:hover { background: rgba(22,25,34,0.32); border-color: rgba(255,255,255,0.16); transform: translateY(-1px); }
 
     /* 面板主体：更透、少 blur、少 saturate */
+    #ab-toggle[hidden] { display: none !important; }
+
     #ab-wrap {
       pointer-events: auto;
-      display: ${COLLAPSED ? 'none' : 'block'};
+      display: block;
       background:
         linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.008)) ,
         radial-gradient(140% 160% at 0% 100%, rgba(96,165,250,0.05), transparent 60%) ,
@@ -109,6 +111,8 @@
       max-width: min(96vw, 1280px);
       backdrop-filter: saturate(0.75) blur(3px);
     }
+
+    #ab-wrap[hidden] { display: none !important; }
 
     #ab-topbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; padding:2px 0; }
     #ab-left { display:flex; align-items:center; gap:8px; }
@@ -146,7 +150,14 @@
       overflow-x: auto; overflow-y: hidden; scrollbar-width: thin;
       max-width: min(96vw, 1280px);
       position: relative;
-      padding: 2px 2px 6px 0;
+      padding: 8px 10px 14px 8px;
+      scroll-padding: 0 10px;
+    }
+    #ab-row::before,
+    #ab-row::after {
+      content: '';
+      flex: 0 0 8px;
+      display: block;
     }
     #ab-row::-webkit-scrollbar { height: 6px; }
     #ab-row::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 999px; }
@@ -172,14 +183,20 @@
 
     .ab-icon {
       width: var(--icon); height: var(--icon);
-      border-radius: 9px; display:grid; place-items:center;
-      font-weight:700; font-size:10px; letter-spacing:.5px; color:#10131a;
-      background: rgba(248,251,255,0.92);
-      border: 1px solid rgba(255,255,255,0.32); user-select:none; cursor: pointer;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.22);
-      transition: background 160ms ease, border-color 160ms ease, transform 160ms ease, box-shadow 160ms ease;
+      border-radius: 12px; display:grid; place-items:center;
+      font-weight:700; font-size:11px; letter-spacing:.6px; color: rgba(16,19,26,0.92);
+      background: linear-gradient(140deg, rgba(255,255,255,0.7), rgba(255,255,255,0.18));
+      border: 1px solid rgba(255,255,255,0.45); user-select:none; cursor: pointer;
+      box-shadow: 0 6px 16px rgba(0,0,0,0.24);
+      backdrop-filter: saturate(1.2) blur(6px);
+      transition: background 160ms ease, border-color 160ms ease, transform 160ms ease, box-shadow 160ms ease, color 160ms ease;
     }
-    .ab-icon:hover { background: rgba(255,255,255,0.98); border-color: rgba(255,255,255,0.4); box-shadow: 0 8px 18px rgba(0,0,0,0.28); }
+    .ab-icon:hover {
+      background: linear-gradient(140deg, rgba(255,255,255,0.82), rgba(255,255,255,0.32));
+      border-color: rgba(255,255,255,0.52);
+      box-shadow: 0 10px 22px rgba(0,0,0,0.28);
+      color: rgba(16,19,26,0.98);
+    }
     .ab-icon:active { transform: scale(0.96); }
     .ab-body { display:flex; flex-direction:column; gap:4px; min-width:0; }
     .ab-head { display:flex; align-items:center; justify-content:space-between; gap:8px; }
@@ -263,12 +280,24 @@
   const timeEl = dock.querySelector('#ab-time');
   const toast  = dock.querySelector('#ab-toast');
 
+  toggle.setAttribute('aria-controls', 'ab-wrap');
+
   // 展开/收起（默认最小化）
-  function minimize(){ COLLAPSED = true;  wrap.style.display = 'none';  toggle.style.display = 'inline-flex'; }
-  function expand()  { COLLAPSED = false; wrap.style.display = 'block'; toggle.style.display = 'none'; }
+  function syncDockState(){
+    const collapsed = COLLAPSED;
+    toggle.hidden = !collapsed;
+    toggle.setAttribute('aria-hidden', collapsed ? 'false' : 'true');
+    toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    wrap.hidden = collapsed;
+    wrap.setAttribute('aria-hidden', collapsed ? 'true' : 'false');
+    dock.classList.toggle('ab-collapsed', collapsed);
+    dock.classList.toggle('ab-expanded', !collapsed);
+  }
+  function minimize(){ COLLAPSED = true;  syncDockState(); }
+  function expand()  { COLLAPSED = false; syncDockState(); }
   toggle.addEventListener('click', expand);
   title.addEventListener('click',  minimize);
-  minimize();
+  syncDockState();
 
   /** ===== 状态与卡片 ===== */
   const state = new Map();              // key -> { value, addr, ts }
