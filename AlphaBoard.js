@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Alpha Board（链上盈利数据展示/底部横排暂时/可隐藏/柔和玻璃）
 // @namespace    https://greasyfork.org/zh-CN/users/1211909-amazing-fish
-// @version      1.0.0
+// @version      1.0.1
 // @description  链上实时账户看板 · 默认最小化 · 按模型独立退避 · 轻量玻璃态 UI · 低饱和 P&L · 横排 6 卡片并展示相对更新时间
 // @match        *://*/*
 // @grant        GM_xmlhttpRequest
@@ -15,7 +15,7 @@
   'use strict';
 
   /**
-   * Alpha Board 1.0.0
+   * Alpha Board 1.0.1
    * ------------------
    *  - 针对多模型地址的链上账户价值聚合看板
    *  - 以 Hyperliquid API 为数据源，独立退避拉取、无本地持久化
@@ -60,7 +60,7 @@
                    Roboto,"PingFang SC","Microsoft YaHei","Noto Sans CJK SC", Arial;
       color-scheme: dark;
       --gap: 8px; --radius: 14px;
-      --pY: 10px; --pX: 12px; --icon: 24px;
+      --pY: 10px; --pX: 12px; --icon: 28px;
       --fsName: 10px; --fsVal: 13.5px; --fsSub: 11px;
 
       /* ↓↓↓ 更低存在感的玻璃态（降低 blur / saturate / 亮度） ↓↓↓ */
@@ -82,7 +82,7 @@
     /* 展开按钮：更透、轻玻璃 */
     #ab-toggle {
       pointer-events: auto;
-      display: ${COLLAPSED ? 'inline-flex' : 'none'};
+      display: inline-flex;
       align-items:center; gap:6px;
       padding:5px 9px; border-radius:11px;
       background: rgba(18,21,28,0.24);
@@ -97,7 +97,7 @@
     /* 面板主体：更透、少 blur、少 saturate */
     #ab-wrap {
       pointer-events: auto;
-      display: ${COLLAPSED ? 'none' : 'block'};
+      display: none;
       background:
         linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.008)) ,
         radial-gradient(140% 160% at 0% 100%, rgba(96,165,250,0.05), transparent 60%) ,
@@ -108,7 +108,13 @@
       box-shadow: 0 16px 36px rgba(0,0,0,0.26);
       max-width: min(96vw, 1280px);
       backdrop-filter: saturate(0.75) blur(3px);
+      overflow: visible;
     }
+
+    #ab-dock.ab-expanded #ab-toggle { display: none; }
+    #ab-dock.ab-expanded #ab-wrap { display: block; }
+    #ab-dock.ab-collapsed #ab-toggle { display: inline-flex; }
+    #ab-dock.ab-collapsed #ab-wrap { display: none; }
 
     #ab-topbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; padding:2px 0; }
     #ab-left { display:flex; align-items:center; gap:8px; }
@@ -141,15 +147,24 @@
     #ab-link svg { width: 14px; height: 14px; fill: currentColor; }
 
     /* 横向一行 + 滚动 */
-    #ab-row {
-      display:flex; flex-wrap: nowrap; gap: var(--gap);
-      overflow-x: auto; overflow-y: hidden; scrollbar-width: thin;
-      max-width: min(96vw, 1280px);
+    #ab-row-viewport {
       position: relative;
-      padding: 2px 2px 6px 0;
+      overflow-x: auto;
+      overflow-y: visible;
+      scrollbar-width: thin;
+      max-width: min(96vw, 1280px);
+      padding: 2px 12px 12px 12px;
+      margin: 0;
     }
-    #ab-row::-webkit-scrollbar { height: 6px; }
-    #ab-row::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 999px; }
+    #ab-row-viewport::-webkit-scrollbar { height: 6px; }
+    #ab-row-viewport::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 999px; }
+
+    #ab-row {
+      display:flex;
+      flex-wrap: nowrap;
+      gap: var(--gap);
+      padding-right: 8px;
+    }
 
     .ab-card {
       flex: 0 0 auto;
@@ -174,12 +189,13 @@
       width: var(--icon); height: var(--icon);
       border-radius: 9px; display:grid; place-items:center;
       font-weight:700; font-size:10px; letter-spacing:.5px; color:#10131a;
-      background: rgba(248,251,255,0.92);
-      border: 1px solid rgba(255,255,255,0.32); user-select:none; cursor: pointer;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.22);
+      background: rgba(248,251,255,0.58);
+      border: 1px solid rgba(255,255,255,0.28); user-select:none; cursor: pointer;
+      box-shadow: 0 6px 16px rgba(0,0,0,0.22);
+      backdrop-filter: blur(6px) saturate(1.1);
       transition: background 160ms ease, border-color 160ms ease, transform 160ms ease, box-shadow 160ms ease;
     }
-    .ab-icon:hover { background: rgba(255,255,255,0.98); border-color: rgba(255,255,255,0.4); box-shadow: 0 8px 18px rgba(0,0,0,0.28); }
+    .ab-icon:hover { background: rgba(255,255,255,0.82); border-color: rgba(255,255,255,0.42); box-shadow: 0 10px 20px rgba(0,0,0,0.28); }
     .ab-icon:active { transform: scale(0.96); }
     .ab-body { display:flex; flex-direction:column; gap:4px; min-width:0; }
     .ab-head { display:flex; align-items:center; justify-content:space-between; gap:8px; }
@@ -249,7 +265,9 @@
           </svg>
         </a>
       </div>
-      <div id="ab-row"></div>
+      <div id="ab-row-viewport">
+        <div id="ab-row"></div>
+      </div>
       <div id="ab-toast" role="status" aria-live="polite"></div>
     </div>
   `;
@@ -264,10 +282,46 @@
   const toast  = dock.querySelector('#ab-toast');
 
   // 展开/收起（默认最小化）
-  function minimize(){ COLLAPSED = true;  wrap.style.display = 'none';  toggle.style.display = 'inline-flex'; }
-  function expand()  { COLLAPSED = false; wrap.style.display = 'block'; toggle.style.display = 'none'; }
+  toggle.setAttribute('role', 'button');
+  toggle.setAttribute('aria-controls', 'ab-wrap');
+  toggle.setAttribute('tabindex', '0');
+  title.setAttribute('role', 'button');
+  title.setAttribute('tabindex', '0');
+  title.setAttribute('aria-controls', 'ab-wrap');
+
+  function applyCollapseState(){
+    if (COLLAPSED) {
+      dock.classList.add('ab-collapsed');
+      dock.classList.remove('ab-expanded');
+      toggle.setAttribute('aria-hidden', 'false');
+      toggle.setAttribute('aria-expanded', 'false');
+      title.setAttribute('aria-expanded', 'false');
+      wrap.setAttribute('aria-hidden', 'true');
+    } else {
+      dock.classList.add('ab-expanded');
+      dock.classList.remove('ab-collapsed');
+      toggle.setAttribute('aria-hidden', 'true');
+      toggle.setAttribute('aria-expanded', 'true');
+      title.setAttribute('aria-expanded', 'true');
+      wrap.setAttribute('aria-hidden', 'false');
+    }
+  }
+  function minimize(){ COLLAPSED = true;  applyCollapseState(); }
+  function expand()  { COLLAPSED = false; applyCollapseState(); }
   toggle.addEventListener('click', expand);
+  toggle.addEventListener('keydown', (ev)=>{
+    if (ev.key === 'Enter' || ev.key === ' ') {
+      ev.preventDefault();
+      expand();
+    }
+  });
   title.addEventListener('click',  minimize);
+  title.addEventListener('keydown', (ev)=>{
+    if (ev.key === 'Enter' || ev.key === ' ') {
+      ev.preventDefault();
+      minimize();
+    }
+  });
   minimize();
 
   /** ===== 状态与卡片 ===== */
