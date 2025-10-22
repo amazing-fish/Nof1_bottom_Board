@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Alpha Board（链上盈利数据展示/底部横排暂时/可隐藏/柔和玻璃）
 // @namespace    https://greasyfork.org/zh-CN/users/1211909-amazing-fish
-// @version      1.0.1
+// @version      1.0.2
 // @description  链上实时账户看板 · 默认最小化 · 按模型独立退避 · 轻量玻璃态 UI · 低饱和 P&L · 横排 6 卡片并展示相对更新时间
 // @match        *://*/*
 // @grant        GM_xmlhttpRequest
@@ -15,7 +15,7 @@
   'use strict';
 
   /**
-   * Alpha Board 1.0.1
+   * Alpha Board 1.0.2
    * ------------------
    *  - 针对多模型地址的链上账户价值聚合看板
    *  - 以 Hyperliquid API 为数据源，独立退避拉取、无本地持久化
@@ -60,7 +60,7 @@
                    Roboto,"PingFang SC","Microsoft YaHei","Noto Sans CJK SC", Arial;
       color-scheme: dark;
       --gap: 8px; --radius: 14px;
-      --pY: 10px; --pX: 12px; --icon: 28px;
+      --pY: 8px; --pX: 12px; --icon: 29px;
       --fsName: 10px; --fsVal: 13.5px; --fsSub: 11px;
 
       /* ↓↓↓ 更低存在感的玻璃态（降低 blur / saturate / 亮度） ↓↓↓ */
@@ -87,7 +87,7 @@
       padding:5px 9px; border-radius:11px;
       background: rgba(18,21,28,0.24);
       border:1px solid rgba(255,255,255,0.10); color:var(--text); font-weight:600; font-size:11px; letter-spacing:.3px;
-      box-shadow: 0 8px 20px rgba(0,0,0,0.22);
+      box-shadow: 0 6px 16px rgba(0,0,0,0.22);
       cursor: pointer; user-select: none;
       backdrop-filter: saturate(0.75) blur(3px);
       transition: background .2s ease, border-color .2s ease, transform .15s ease;
@@ -104,8 +104,8 @@
         var(--bg);
       border: 1px solid rgba(255,255,255,0.09);
       border-radius: 16px;
-      padding: 10px 12px 12px;
-      box-shadow: 0 16px 36px rgba(0,0,0,0.26);
+      padding: 8px 12px 10px;
+      box-shadow: 0 14px 30px rgba(0,0,0,0.24);
       max-width: min(96vw, 1280px);
       backdrop-filter: saturate(0.75) blur(3px);
       overflow: visible;
@@ -153,7 +153,7 @@
       overflow-y: visible;
       scrollbar-width: thin;
       max-width: min(96vw, 1280px);
-      padding: 2px 12px 12px 12px;
+      padding: 0 12px 10px 12px;
       margin: 0;
     }
     #ab-row-viewport::-webkit-scrollbar { height: 6px; }
@@ -181,7 +181,7 @@
     .ab-card:hover {
       background: linear-gradient(155deg, rgba(255,255,255,0.1), rgba(255,255,255,0.02));
       border-color: rgba(255,255,255,0.16);
-      box-shadow: 0 12px 28px rgba(0,0,0,0.28);
+      box-shadow: 0 10px 24px rgba(0,0,0,0.26);
       transform: translateY(-1px);
     }
 
