@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Alpha Board（链上盈利数据展示/底部横排暂时/可隐藏/柔和玻璃）
 // @namespace    https://greasyfork.org/zh-CN/users/1211909-amazing-fish
-// @version      1.0.0
+// @version      1.0.1
 // @description  链上实时账户看板 · 默认最小化 · 按模型独立退避 · 轻量玻璃态 UI · 低饱和 P&L · 横排 6 卡片并展示相对更新时间
 // @match        *://*/*
 // @grant        GM_xmlhttpRequest
@@ -15,7 +15,7 @@
   'use strict';
 
   /**
-   * Alpha Board 1.0.0
+   * Alpha Board 1.0.1
    * ------------------
    *  - 针对多模型地址的链上账户价值聚合看板
    *  - 以 Hyperliquid API 为数据源，独立退避拉取、无本地持久化
@@ -60,7 +60,7 @@
                    Roboto,"PingFang SC","Microsoft YaHei","Noto Sans CJK SC", Arial;
       color-scheme: dark;
       --gap: 8px; --radius: 14px;
-      --pY: 10px; --pX: 12px; --icon: 24px;
+      --pY: 10px; --pX: 12px; --icon: 30px;
       --fsName: 10px; --fsVal: 13.5px; --fsSub: 11px;
 
       /* ↓↓↓ 更低存在感的玻璃态（降低 blur / saturate / 亮度） ↓↓↓ */
@@ -104,7 +104,7 @@
         var(--bg);
       border: 1px solid rgba(255,255,255,0.09);
       border-radius: 16px;
-      padding: 10px 12px 12px;
+      padding: 12px 16px 16px 12px;
       box-shadow: 0 16px 36px rgba(0,0,0,0.26);
       max-width: min(96vw, 1280px);
       backdrop-filter: saturate(0.75) blur(3px);
@@ -143,10 +143,11 @@
     /* 横向一行 + 滚动 */
     #ab-row {
       display:flex; flex-wrap: nowrap; gap: var(--gap);
-      overflow-x: auto; overflow-y: hidden; scrollbar-width: thin;
+      overflow-x: auto; overflow-y: visible; scrollbar-width: thin;
       max-width: min(96vw, 1280px);
       position: relative;
-      padding: 2px 2px 6px 0;
+      padding: 6px 14px 16px 0;
+      scroll-padding: 0 14px 0 0;
     }
     #ab-row::-webkit-scrollbar { height: 6px; }
     #ab-row::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 999px; }
@@ -172,14 +173,15 @@
 
     .ab-icon {
       width: var(--icon); height: var(--icon);
-      border-radius: 9px; display:grid; place-items:center;
-      font-weight:700; font-size:10px; letter-spacing:.5px; color:#10131a;
-      background: rgba(248,251,255,0.92);
-      border: 1px solid rgba(255,255,255,0.32); user-select:none; cursor: pointer;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.22);
-      transition: background 160ms ease, border-color 160ms ease, transform 160ms ease, box-shadow 160ms ease;
+      border-radius: 11px; display:grid; place-items:center;
+      font-weight:700; font-size:11px; letter-spacing:.55px; color:rgba(16,19,26,0.82);
+      background: linear-gradient(155deg, rgba(255,255,255,0.52), rgba(255,255,255,0.24));
+      border: 1px solid rgba(255,255,255,0.38); user-select:none; cursor: pointer;
+      box-shadow: 0 6px 16px rgba(0,0,0,0.24);
+      backdrop-filter: blur(6px) saturate(1.25);
+      transition: background 160ms ease, border-color 160ms ease, transform 160ms ease, box-shadow 160ms ease, color 160ms ease;
     }
-    .ab-icon:hover { background: rgba(255,255,255,0.98); border-color: rgba(255,255,255,0.4); box-shadow: 0 8px 18px rgba(0,0,0,0.28); }
+    .ab-icon:hover { background: linear-gradient(155deg, rgba(255,255,255,0.7), rgba(255,255,255,0.36)); border-color: rgba(255,255,255,0.46); box-shadow: 0 9px 22px rgba(0,0,0,0.28); color:rgba(16,19,26,0.9); }
     .ab-icon:active { transform: scale(0.96); }
     .ab-body { display:flex; flex-direction:column; gap:4px; min-width:0; }
     .ab-head { display:flex; align-items:center; justify-content:space-between; gap:8px; }
@@ -264,8 +266,21 @@
   const toast  = dock.querySelector('#ab-toast');
 
   // 展开/收起（默认最小化）
-  function minimize(){ COLLAPSED = true;  wrap.style.display = 'none';  toggle.style.display = 'inline-flex'; }
-  function expand()  { COLLAPSED = false; wrap.style.display = 'block'; toggle.style.display = 'none'; }
+  function attachToggle(){ if (!toggle.isConnected) dock.insertBefore(toggle, wrap); }
+  function minimize(){
+    COLLAPSED = true;
+    wrap.style.display = 'none';
+    attachToggle();
+    toggle.style.display = 'inline-flex';
+    toggle.setAttribute('aria-hidden', 'false');
+  }
+  function expand(){
+    COLLAPSED = false;
+    wrap.style.display = 'block';
+    toggle.style.display = 'none';
+    toggle.setAttribute('aria-hidden', 'true');
+    if (toggle.isConnected) toggle.remove();
+  }
   toggle.addEventListener('click', expand);
   title.addEventListener('click',  minimize);
   minimize();
