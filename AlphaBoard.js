@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Alpha Board（链上盈利数据展示/底部横排暂时/可隐藏/柔和玻璃）
 // @namespace    https://greasyfork.org/zh-CN/users/1211909-amazing-fish
-// @version      1.0.6
+// @version      1.1.0
 // @description  链上实时账户看板 · 默认最小化 · 按模型独立退避 · 轻量玻璃态 UI · 低饱和 P&L · 横排 6 卡片并展示相对更新时间
 // @match        *://*/*
 // @grant        GM_xmlhttpRequest
@@ -15,7 +15,7 @@
   'use strict';
 
   /**
-   * Alpha Board 1.0.6
+   * Alpha Board 1.1.0
    * ------------------
    *  - 针对多模型地址的链上账户价值聚合看板
    *  - 以 Hyperliquid API 为数据源，独立退避拉取、无本地持久化
@@ -288,6 +288,31 @@
   const dot      = dock.querySelector('#ab-dot');
   const timeEl   = dock.querySelector('#ab-time');
   const toast    = dock.querySelector('#ab-toast');
+
+  function normalizeWheelDelta(ev) {
+    if (ev.deltaMode === 1) return ev.deltaY * 16; // DOM_DELTA_LINE
+    if (ev.deltaMode === 2) return ev.deltaY * viewport.clientWidth; // DOM_DELTA_PAGE
+    return ev.deltaY;
+  }
+
+  viewport.addEventListener('wheel', (ev) => {
+    if (ev.ctrlKey) return;
+    const scrollableWidth = viewport.scrollWidth - viewport.clientWidth;
+    if (scrollableWidth <= 0) return;
+    const absY = Math.abs(ev.deltaY);
+    const absX = Math.abs(ev.deltaX);
+    if (absY === 0 || absY <= absX) return;
+
+    const delta = normalizeWheelDelta(ev);
+    if (!delta) return;
+
+    const prev = viewport.scrollLeft;
+    const next = Math.min(Math.max(prev + delta, 0), scrollableWidth);
+    if (next === prev) return;
+
+    ev.preventDefault();
+    viewport.scrollLeft = next;
+  }, { passive: false });
 
   // 展开/收起（默认最小化）
   toggle.setAttribute('role', 'button');
