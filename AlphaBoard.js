@@ -59,9 +59,10 @@
       font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI",
                    Roboto,"PingFang SC","Microsoft YaHei","Noto Sans CJK SC", Arial;
       color-scheme: dark;
-      --gap: 8px; --radius: 14px;
-      --pY: 8px; --pX: 12px; --icon: 32px;
-      --fsName: 10px; --fsVal: 13.5px; --fsSub: 11px;
+      --gap: 7px; --radius: 13px;
+      --pY: 7px; --pX: 10px; --icon: 28px;
+      --fsName: 9.5px; --fsVal: 12.8px; --fsSub: 10.2px;
+      --card-min: 156px;
 
       /* ↓↓↓ 更低存在感的玻璃态（降低 blur / saturate / 亮度） ↓↓↓ */
       --bg: rgba(12,14,18,0.26);
@@ -106,7 +107,8 @@
       border-radius: 16px;
       padding: 6px 12px 8px;
       box-shadow: 0 14px 30px rgba(0,0,0,0.24);
-      max-width: min(96vw, 1280px);
+      width: min(calc(4 * var(--card-min) + 3 * var(--gap) + 24px), 92vw);
+      max-width: min(calc(4 * var(--card-min) + 3 * var(--gap) + 24px), 92vw);
       backdrop-filter: saturate(0.75) blur(3px);
       overflow: visible;
     }
@@ -152,8 +154,9 @@
       overflow-x: auto;
       overflow-y: visible;
       scrollbar-width: thin;
-      max-width: min(96vw, 1280px);
-      padding: 0 12px 8px 12px;
+      width: min(calc(4 * var(--card-min) + 3 * var(--gap) + 24px), 92vw);
+      max-width: min(calc(4 * var(--card-min) + 3 * var(--gap) + 24px), 92vw);
+      padding: 0 12px 6px 12px;
       margin: 0;
     }
     #ab-row-viewport::-webkit-scrollbar { height: 6px; }
@@ -163,13 +166,13 @@
       display:flex;
       flex-wrap: nowrap;
       gap: var(--gap);
-      padding-right: 8px;
+      padding-right: 6px;
     }
 
     .ab-card {
       flex: 0 0 auto;
-      min-width: 176px; max-width: 240px;
-      position: relative; display:flex; align-items:flex-start; gap:10px;
+      min-width: var(--card-min); max-width: calc(var(--card-min) + 36px);
+      position: relative; display:flex; align-items:flex-start; gap:8px;
       padding: var(--pY) var(--pX);
       background: linear-gradient(155deg, rgba(255,255,255,0.05), rgba(255,255,255,0));
       border: 1px solid rgba(255,255,255,0.08);
@@ -187,8 +190,8 @@
 
     .ab-icon {
       width: var(--icon); height: var(--icon);
-      border-radius: 9px; display:grid; place-items:center;
-      font-weight:700; font-size:10px; letter-spacing:.5px; color:#10131a;
+      border-radius: 8px; display:grid; place-items:center;
+      font-weight:700; font-size:9px; letter-spacing:.4px; color:#10131a;
       background: rgba(248,251,255,0.58);
       border: 1px solid rgba(255,255,255,0.28); user-select:none; cursor: pointer;
       box-shadow: 0 6px 16px rgba(0,0,0,0.22);
@@ -197,12 +200,12 @@
     }
     .ab-icon:hover { background: rgba(255,255,255,0.82); border-color: rgba(255,255,255,0.42); box-shadow: 0 10px 20px rgba(0,0,0,0.28); }
     .ab-icon:active { transform: scale(0.96); }
-    .ab-body { display:flex; flex-direction:column; gap:4px; min-width:0; }
-    .ab-head { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+    .ab-body { display:flex; flex-direction:column; gap:3px; min-width:0; }
+    .ab-head { display:flex; align-items:center; justify-content:space-between; gap:6px; }
     .ab-name { font-size: var(--fsName); color:#f7faff; font-weight:600; letter-spacing:.24px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-shadow: 0 0 6px rgba(0,0,0,0.32); }
-    .ab-time { font-size:10px; color:#eef3ff; letter-spacing:.25px; white-space:nowrap; font-weight:500; text-shadow: 0 0 6px rgba(0,0,0,0.30); }
-    .ab-val  { font-size: var(--fsVal);  color:#f9fbff; font-weight:700; letter-spacing:.3px; font-variant-numeric: tabular-nums; text-shadow: 0 0 6px rgba(0,0,0,0.28); }
-    .ab-sub  { font-size: var(--fsSub);  color:#a4afc0; font-variant-numeric: tabular-nums; }
+    .ab-time { font-size: 9.6px; color:#eef3ff; letter-spacing:.22px; white-space:nowrap; font-weight:500; text-shadow: 0 0 6px rgba(0,0,0,0.30); }
+    .ab-val  { font-size: var(--fsVal);  color:#f9fbff; font-weight:700; letter-spacing:.22px; font-variant-numeric: tabular-nums; text-shadow: 0 0 6px rgba(0,0,0,0.26); }
+    .ab-sub  { font-size: var(--fsSub);  color:#a8b2c3; font-variant-numeric: tabular-nums; letter-spacing:.15px; }
 
     /* ↓ P&L 低饱和绿/红 */
     .ab-sub .pos { color: color-mix(in srgb, var(--green) 82%, #d1fae5); }
@@ -219,7 +222,7 @@
       background: linear-gradient(90deg, rgba(255,255,255,0.05) 25%, rgba(255,255,255,0.12) 45%, rgba(255,255,255,0.05) 65%);
       background-size: 400% 100%;
       animation: ab-shimmer 1.2s ease-in-out infinite;
-      border-radius: 999px; height: 10px; width: 120px; opacity: .6;
+      border-radius: 999px; height: 9px; width: 108px; opacity: .6;
     }
     @keyframes ab-shimmer {
       0% { background-position: 100% 0; }
