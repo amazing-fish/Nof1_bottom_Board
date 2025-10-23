@@ -342,13 +342,24 @@
     });
   }
   function applyWidthSync(){
-    const sample = row.querySelector('.ab-card');
-    if (!sample) return;
-    const cardWidth = sample.getBoundingClientRect().width;
-    if (!cardWidth) return;
+    const cards = Array.from(row.querySelectorAll('.ab-card'));
+    if (!cards.length) return;
+
+    const sampleCount = Math.min(cards.length, VISIBLE_CARD_COUNT);
+    let totalWidth = 0;
+    let measured = 0;
+
+    for (let i = 0; i < sampleCount; i += 1) {
+      const rect = cards[i].getBoundingClientRect();
+      if (!rect.width) continue;
+      totalWidth += rect.width;
+      measured += 1;
+    }
+
+    if (!measured) return;
 
     const rowStyles = getComputedStyle(row);
-    const gapValue = parseFloat(rowStyles.columnGap || rowStyles.gap || '0') || 0;
+    const gapValue = parseFloat(rowStyles.gap || rowStyles.columnGap || '0') || 0;
     const rowPadL = parseFloat(rowStyles.paddingLeft || '0') || 0;
     const rowPadR = parseFloat(rowStyles.paddingRight || '0') || 0;
 
@@ -356,8 +367,9 @@
     const viewportPadL = parseFloat(viewportStyles.paddingLeft || '0') || 0;
     const viewportPadR = parseFloat(viewportStyles.paddingRight || '0') || 0;
 
-    const contentWidth = (cardWidth * VISIBLE_CARD_COUNT)
-      + (gapValue * (VISIBLE_CARD_COUNT - 1))
+    const visibleGapTotal = gapValue * Math.max(0, measured - 1);
+    const contentWidth = totalWidth
+      + visibleGapTotal
       + rowPadL + rowPadR
       + viewportPadL + viewportPadR;
 
