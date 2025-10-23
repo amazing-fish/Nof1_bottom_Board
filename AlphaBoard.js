@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Alpha Board（链上盈利数据展示/底部横排暂时/可隐藏/柔和玻璃）
 // @namespace    https://greasyfork.org/zh-CN/users/1211909-amazing-fish
-// @version      1.1.0
+// @version      1.1.1
 // @description  链上实时账户看板 · 默认最小化 · 按模型独立退避 · 轻量玻璃态 UI · 低饱和 P&L · 横排 6 卡片并展示相对更新时间
 // @match        *://*/*
 // @grant        GM_xmlhttpRequest
@@ -15,12 +15,12 @@
   'use strict';
 
   /**
-   * Alpha Board 1.1.0
+   * Alpha Board 1.1.1
    * ------------------
    *  - 针对多模型地址的链上账户价值聚合看板
    *  - 以 Hyperliquid API 为数据源，独立退避拉取、无本地持久化
    *  - 默认最小化，支持标题点击折叠，卡片横向排列并带相对时间
-   *  - 鼠标滚轮上下滑动可驱动卡片横向滑动
+   *  - 鼠标滚轮上下滑动可驱动卡片横向滑动，并带缓动动画
    *  - 轻量玻璃态视觉 + 低饱和红/绿提示，适合常驻屏幕
    */
 
@@ -56,6 +56,9 @@
   const DOM_DELTA_LINE = 1;
   const DOM_DELTA_PAGE = 2;
   const WHEEL_LINE_HEIGHT = 16;
+  const WHEEL_ANIM_MIN_MS = 160;
+  const WHEEL_ANIM_MAX_MS = 420;
+  const WHEEL_ANIM_PX_RATIO = 0.45;
   const ACTIVATION_KEYS = new Set(['Enter', ' ']);
 
   /** ===== 玻璃态 + 透明度优化样式（更透、更克制） ===== */
@@ -385,6 +388,60 @@
   window.addEventListener('resize', scheduleWidthSync, { passive: true });
   viewport.addEventListener('wheel', handleViewportWheel, { passive: false });
 
+  let wheelAnimId = 0;
+  let wheelAnimStart = 0;
+  let wheelAnimFrom = 0;
+  let wheelAnimTo = 0;
+  let wheelAnimDuration = WHEEL_ANIM_MIN_MS;
+  let wheelAnimTarget = null;
+
+  function easeOutCubic(t){
+    return 1 - Math.pow(1 - t, 3);
+  }
+
+  function beginWheelAnimation(target, to, distance){
+    wheelAnimTarget = target;
+    wheelAnimFrom = target.scrollLeft;
+    wheelAnimTo = to;
+    wheelAnimDuration = Math.min(
+      WHEEL_ANIM_MAX_MS,
+      Math.max(WHEEL_ANIM_MIN_MS, WHEEL_ANIM_MIN_MS + distance * WHEEL_ANIM_PX_RATIO)
+    );
+    wheelAnimStart = performance.now();
+    if (!wheelAnimId) {
+      wheelAnimId = requestAnimationFrame(stepWheelAnimation);
+    }
+  }
+
+  function stepWheelAnimation(now){
+    const target = wheelAnimTarget;
+    if (!target) {
+      wheelAnimId = 0;
+      return;
+    }
+
+    const duration = wheelAnimDuration;
+    if (duration <= 0) {
+      target.scrollLeft = wheelAnimTo;
+      wheelAnimId = 0;
+      wheelAnimTarget = null;
+      return;
+    }
+
+    const progress = Math.min(1, (now - wheelAnimStart) / duration);
+    const eased = easeOutCubic(progress);
+    const next = wheelAnimFrom + (wheelAnimTo - wheelAnimFrom) * eased;
+    target.scrollLeft = next;
+
+    if (progress < 1 && Math.abs(wheelAnimTo - next) > 0.01) {
+      wheelAnimId = requestAnimationFrame(stepWheelAnimation);
+    } else {
+      target.scrollLeft = wheelAnimTo;
+      wheelAnimId = 0;
+      wheelAnimTarget = null;
+    }
+  }
+
   function handleViewportWheel(ev){
     if (ev.ctrlKey || ev.altKey || ev.metaKey) return;
     const target = ev.currentTarget;
@@ -403,9 +460,9 @@
 
     const prev = target.scrollLeft;
     const next = Math.min(maxScrollLeft, Math.max(0, prev + deltaPx));
-    if (next === prev) return;
+    if (Math.abs(next - prev) < 0.01) return;
 
-    target.scrollLeft = next;
+    beginWheelAnimation(target, next, Math.abs(next - prev));
     ev.preventDefault();
   }
 
