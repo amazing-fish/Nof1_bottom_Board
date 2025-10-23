@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Alpha Board（链上盈利数据展示/底部横排暂时/可隐藏/柔和玻璃）
 // @namespace    https://greasyfork.org/zh-CN/users/1211909-amazing-fish
-// @version      1.0.5
+// @version      1.0.6
 // @description  链上实时账户看板 · 默认最小化 · 按模型独立退避 · 轻量玻璃态 UI · 低饱和 P&L · 横排 6 卡片并展示相对更新时间
 // @match        *://*/*
 // @grant        GM_xmlhttpRequest
@@ -15,7 +15,7 @@
   'use strict';
 
   /**
-   * Alpha Board 1.0.5
+   * Alpha Board 1.0.6
    * ------------------
    *  - 针对多模型地址的链上账户价值聚合看板
    *  - 以 Hyperliquid API 为数据源，独立退避拉取、无本地持久化
@@ -61,6 +61,8 @@
       color-scheme: dark;
       --gap: 7px; --radius: 14px;
       --pY: 6px; --pX: 10px; --icon: 28px;
+      --cardsVisible: 4;
+      --cardW: clamp(152px, 19vw, 176px);
       --fsName: 9.5px; --fsVal: 12.5px; --fsSub: 9.5px;
 
       /* ↓↓↓ 更低存在感的玻璃态（降低 blur / saturate / 亮度） ↓↓↓ */
@@ -106,8 +108,14 @@
       border-radius: 16px;
       padding: 6px 10px 8px;
       box-shadow: 0 14px 30px rgba(0,0,0,0.24);
-      width: min(96vw, calc(4 * 168px + 3 * var(--gap) + 24px));
-      max-width: min(96vw, calc(4 * 168px + 3 * var(--gap) + 24px));
+      width: min(
+        96vw,
+        calc(var(--cardsVisible) * var(--cardW) + (var(--cardsVisible) - 1) * var(--gap) + 24px)
+      );
+      max-width: min(
+        96vw,
+        calc(var(--cardsVisible) * var(--cardW) + (var(--cardsVisible) - 1) * var(--gap) + 24px)
+      );
       backdrop-filter: saturate(0.75) blur(3px);
       overflow: visible;
     }
@@ -154,12 +162,20 @@
       overflow-y: visible;
       scrollbar-width: thin;
       width: 100%;
-      max-width: min(96vw, calc(4 * 168px + 3 * var(--gap) + 24px));
+      max-width: min(
+        96vw,
+        calc(var(--cardsVisible) * var(--cardW) + (var(--cardsVisible) - 1) * var(--gap) + 24px)
+      );
       padding: 0 10px 8px 10px;
       margin: 0;
     }
-    #ab-row-viewport::-webkit-scrollbar { height: 6px; }
-    #ab-row-viewport::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 999px; }
+    #ab-row-viewport { scrollbar-color: rgba(255,255,255,0.08) transparent; }
+    #ab-row-viewport::-webkit-scrollbar { height: 4px; }
+    #ab-row-viewport::-webkit-scrollbar-track { background: transparent; }
+    #ab-row-viewport::-webkit-scrollbar-thumb {
+      background: rgba(255,255,255,0.08);
+      border-radius: 999px;
+    }
 
     #ab-row {
       display:flex;
@@ -169,8 +185,10 @@
     }
 
     .ab-card {
-      flex: 0 0 auto;
-      min-width: 152px; max-width: 208px;
+      flex: 0 0 var(--cardW);
+      width: var(--cardW);
+      min-width: var(--cardW);
+      max-width: var(--cardW);
       position: relative; display:flex; align-items:flex-start; gap:8px;
       padding: var(--pY) var(--pX);
       background: linear-gradient(155deg, rgba(255,255,255,0.05), rgba(255,255,255,0));
