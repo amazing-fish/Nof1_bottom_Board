@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Alpha Board（链上盈利数据展示/底部横排暂时/可隐藏/柔和玻璃）
 // @namespace    https://greasyfork.org/zh-CN/users/1211909-amazing-fish
-// @version      1.0.5
+// @version      1.0.6
 // @description  链上实时账户看板 · 默认最小化 · 按模型独立退避 · 轻量玻璃态 UI · 低饱和 P&L · 横排 6 卡片并展示相对更新时间
 // @match        *://*/*
 // @grant        GM_xmlhttpRequest
@@ -15,7 +15,7 @@
   'use strict';
 
   /**
-   * Alpha Board 1.0.5
+   * Alpha Board 1.0.6
    * ------------------
    *  - 针对多模型地址的链上账户价值聚合看板
    *  - 以 Hyperliquid API 为数据源，独立退避拉取、无本地持久化
@@ -50,6 +50,8 @@
     { key: 'Qwen3-Max', badge: 'QWN' },
   ];
 
+  const VISIBLE_CARD_COUNT = 4;
+
   /** ===== 玻璃态 + 透明度优化样式（更透、更克制） ===== */
   // 所有视觉样式集中在一处，方便微调颜色、透明度或布局。
   GM_addStyle(`
@@ -61,6 +63,7 @@
       color-scheme: dark;
       --gap: 7px; --radius: 14px;
       --pY: 6px; --pX: 10px; --icon: 28px;
+      --ab-target-width: calc(4 * 168px + 3 * var(--gap) + 24px);
       --fsName: 9.5px; --fsVal: 12.5px; --fsSub: 9.5px;
 
       /* ↓↓↓ 更低存在感的玻璃态（降低 blur / saturate / 亮度） ↓↓↓ */
@@ -106,8 +109,8 @@
       border-radius: 16px;
       padding: 6px 10px 8px;
       box-shadow: 0 14px 30px rgba(0,0,0,0.24);
-      width: min(96vw, calc(4 * 168px + 3 * var(--gap) + 24px));
-      max-width: min(96vw, calc(4 * 168px + 3 * var(--gap) + 24px));
+      width: min(96vw, var(--ab-target-width));
+      max-width: min(96vw, var(--ab-target-width));
       backdrop-filter: saturate(0.75) blur(3px);
       overflow: visible;
     }
@@ -153,13 +156,14 @@
       overflow-x: auto;
       overflow-y: visible;
       scrollbar-width: thin;
+      scrollbar-color: rgba(255,255,255,0.10) transparent;
       width: 100%;
-      max-width: min(96vw, calc(4 * 168px + 3 * var(--gap) + 24px));
+      max-width: min(96vw, var(--ab-target-width));
       padding: 0 10px 8px 10px;
       margin: 0;
     }
-    #ab-row-viewport::-webkit-scrollbar { height: 6px; }
-    #ab-row-viewport::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 999px; }
+    #ab-row-viewport::-webkit-scrollbar { height: 4px; }
+    #ab-row-viewport::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 999px; }
 
     #ab-row {
       display:flex;
@@ -275,13 +279,14 @@
   `;
   document.documentElement.appendChild(dock);
 
-  const wrap   = dock.querySelector('#ab-wrap');
-  const row    = dock.querySelector('#ab-row');
-  const toggle = dock.querySelector('#ab-toggle');
-  const title  = dock.querySelector('#ab-title');
-  const dot    = dock.querySelector('#ab-dot');
-  const timeEl = dock.querySelector('#ab-time');
-  const toast  = dock.querySelector('#ab-toast');
+  const wrap     = dock.querySelector('#ab-wrap');
+  const viewport = dock.querySelector('#ab-row-viewport');
+  const row      = dock.querySelector('#ab-row');
+  const toggle   = dock.querySelector('#ab-toggle');
+  const title    = dock.querySelector('#ab-title');
+  const dot      = dock.querySelector('#ab-dot');
+  const timeEl   = dock.querySelector('#ab-time');
+  const toast    = dock.querySelector('#ab-toast');
 
   // 展开/收起（默认最小化）
   toggle.setAttribute('role', 'button');
@@ -309,7 +314,7 @@
     }
   }
   function minimize(){ COLLAPSED = true;  applyCollapseState(); }
-  function expand()  { COLLAPSED = false; applyCollapseState(); }
+  function expand()  { COLLAPSED = false; applyCollapseState(); scheduleWidthSync(); }
   toggle.addEventListener('click', expand);
   toggle.addEventListener('keydown', (ev)=>{
     if (ev.key === 'Enter' || ev.key === ' ') {
@@ -325,6 +330,43 @@
     }
   });
   minimize();
+
+  let widthSyncPending = false;
+  let lastWidthApplied = 0;
+  function scheduleWidthSync(){
+    if (widthSyncPending) return;
+    widthSyncPending = true;
+    requestAnimationFrame(()=>{
+      widthSyncPending = false;
+      applyWidthSync();
+    });
+  }
+  function applyWidthSync(){
+    const sample = row.querySelector('.ab-card');
+    if (!sample) return;
+    const cardWidth = sample.getBoundingClientRect().width;
+    if (!cardWidth) return;
+
+    const rowStyles = getComputedStyle(row);
+    const gapValue = parseFloat(rowStyles.columnGap || rowStyles.gap || '0') || 0;
+    const rowPadL = parseFloat(rowStyles.paddingLeft || '0') || 0;
+    const rowPadR = parseFloat(rowStyles.paddingRight || '0') || 0;
+
+    const viewportStyles = getComputedStyle(viewport);
+    const viewportPadL = parseFloat(viewportStyles.paddingLeft || '0') || 0;
+    const viewportPadR = parseFloat(viewportStyles.paddingRight || '0') || 0;
+
+    const contentWidth = (cardWidth * VISIBLE_CARD_COUNT)
+      + (gapValue * (VISIBLE_CARD_COUNT - 1))
+      + rowPadL + rowPadR
+      + viewportPadL + viewportPadR;
+
+    const maxWidthPx = Math.min(window.innerWidth * 0.96, contentWidth);
+    if (Math.abs(maxWidthPx - lastWidthApplied) < 0.5) return;
+    lastWidthApplied = maxWidthPx;
+    dock.style.setProperty('--ab-target-width', `${maxWidthPx}px`);
+  }
+  window.addEventListener('resize', scheduleWidthSync, { passive: true });
 
   /** ===== 状态与卡片 ===== */
   const state = new Map();              // key -> { value, addr, ts }
@@ -369,6 +411,7 @@
     });
   });
 
+  scheduleWidthSync();
   refreshCardTimes();
 
   /** ===== 网络层 ===== */
@@ -536,6 +579,7 @@
 
     lastOrder = newOrder;
     refreshCardTimes();
+    scheduleWidthSync();
   }
 
   /** ===== 顶栏状态：Live / Stale / Dead ===== */
