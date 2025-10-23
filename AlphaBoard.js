@@ -51,6 +51,7 @@
   ];
 
   const VISIBLE_CARD_COUNT = 4;
+  const WIDTH_EXTRA_PX = 80;
 
   /** ===== 玻璃态 + 透明度优化样式（更透、更克制） ===== */
   // 所有视觉样式集中在一处，方便微调颜色、透明度或布局。
@@ -63,7 +64,7 @@
       color-scheme: dark;
       --gap: 7px; --radius: 14px;
       --pY: 6px; --pX: 10px; --icon: 28px;
-      --ab-target-width: calc(4 * 168px + 3 * var(--gap) + 24px);
+      --ab-target-width: calc(4 * 168px + 3 * var(--gap) + 24px + ${WIDTH_EXTRA_PX}px);
       --fsName: 9.5px; --fsVal: 12.5px; --fsSub: 9.5px;
 
       /* ↓↓↓ 更低存在感的玻璃态（降低 blur / saturate / 亮度） ↓↓↓ */
@@ -368,10 +369,12 @@
     const viewportPadR = parseFloat(viewportStyles.paddingRight || '0') || 0;
 
     const visibleGapTotal = gapValue * Math.max(0, measured - 1);
-    const contentWidth = totalWidth
+    const baseWidth = totalWidth
       + visibleGapTotal
       + rowPadL + rowPadR
       + viewportPadL + viewportPadR;
+
+    const contentWidth = baseWidth + WIDTH_EXTRA_PX;
 
     const maxWidthPx = Math.min(window.innerWidth * 0.96, contentWidth);
     if (Math.abs(maxWidthPx - lastWidthApplied) < 0.5) return;
