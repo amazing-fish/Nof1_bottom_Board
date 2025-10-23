@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Alpha Board（链上盈利数据展示/底部横排暂时/可隐藏/柔和玻璃）
 // @namespace    https://greasyfork.org/zh-CN/users/1211909-amazing-fish
-// @version      1.0.6
+// @version      1.1.0
 // @description  链上实时账户看板 · 默认最小化 · 按模型独立退避 · 轻量玻璃态 UI · 低饱和 P&L · 横排 6 卡片并展示相对更新时间
 // @match        *://*/*
 // @grant        GM_xmlhttpRequest
@@ -15,11 +15,12 @@
   'use strict';
 
   /**
-   * Alpha Board 1.0.6
+   * Alpha Board 1.1.0
    * ------------------
    *  - 针对多模型地址的链上账户价值聚合看板
    *  - 以 Hyperliquid API 为数据源，独立退避拉取、无本地持久化
    *  - 默认最小化，支持标题点击折叠，卡片横向排列并带相对时间
+   *  - 鼠标滚轮上下滑动可驱动卡片横向滑动
    *  - 轻量玻璃态视觉 + 低饱和红/绿提示，适合常驻屏幕
    */
 
@@ -52,6 +53,10 @@
 
   const VISIBLE_CARD_COUNT = 4;
   const WIDTH_EXTRA_PX = 80;
+  const DOM_DELTA_LINE = 1;
+  const DOM_DELTA_PAGE = 2;
+  const WHEEL_LINE_HEIGHT = 16;
+  const ACTIVATION_KEYS = new Set(['Enter', ' ']);
 
   /** ===== 玻璃态 + 透明度优化样式（更透、更克制） ===== */
   // 所有视觉样式集中在一处，方便微调颜色、透明度或布局。
@@ -316,20 +321,16 @@
   }
   function minimize(){ COLLAPSED = true;  applyCollapseState(); }
   function expand()  { COLLAPSED = false; applyCollapseState(); scheduleWidthSync(); }
-  toggle.addEventListener('click', expand);
-  toggle.addEventListener('keydown', (ev)=>{
-    if (ev.key === 'Enter' || ev.key === ' ') {
+  function attachPressHandlers(el, handler){
+    el.addEventListener('click', handler);
+    el.addEventListener('keydown', (ev)=>{
+      if (!ACTIVATION_KEYS.has(ev.key)) return;
       ev.preventDefault();
-      expand();
-    }
-  });
-  title.addEventListener('click',  minimize);
-  title.addEventListener('keydown', (ev)=>{
-    if (ev.key === 'Enter' || ev.key === ' ') {
-      ev.preventDefault();
-      minimize();
-    }
-  });
+      handler(ev);
+    });
+  }
+  attachPressHandlers(toggle, expand);
+  attachPressHandlers(title, minimize);
   minimize();
 
   let widthSyncPending = false;
@@ -382,6 +383,31 @@
     dock.style.setProperty('--ab-target-width', `${maxWidthPx}px`);
   }
   window.addEventListener('resize', scheduleWidthSync, { passive: true });
+  viewport.addEventListener('wheel', handleViewportWheel, { passive: false });
+
+  function handleViewportWheel(ev){
+    if (ev.ctrlKey || ev.altKey || ev.metaKey) return;
+    const target = ev.currentTarget;
+    if (!(target instanceof HTMLElement)) return;
+    const maxScrollLeft = target.scrollWidth - target.clientWidth;
+    if (maxScrollLeft <= 0) return;
+
+    const primaryDelta = Math.abs(ev.deltaY) >= Math.abs(ev.deltaX) ? ev.deltaY : 0;
+    if (!primaryDelta) return;
+
+    let deltaPx = primaryDelta;
+    if (ev.deltaMode === DOM_DELTA_LINE) deltaPx *= WHEEL_LINE_HEIGHT;
+    else if (ev.deltaMode === DOM_DELTA_PAGE) deltaPx *= target.clientWidth;
+
+    if (!deltaPx) return;
+
+    const prev = target.scrollLeft;
+    const next = Math.min(maxScrollLeft, Math.max(0, prev + deltaPx));
+    if (next === prev) return;
+
+    target.scrollLeft = next;
+    ev.preventDefault();
+  }
 
   /** ===== 状态与卡片 ===== */
   const state = new Map();              // key -> { value, addr, ts }
