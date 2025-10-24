@@ -388,12 +388,24 @@
       + rowPadL + rowPadR
       + viewportPadL + viewportPadR;
 
-    const contentWidth = baseWidth + WIDTH_EXTRA_PX;
+    const viewportWidthCandidates = [
+      window.innerWidth || 0,
+      (document.documentElement && document.documentElement.clientWidth) || 0,
+      (window.visualViewport && window.visualViewport.width) || 0,
+    ].filter(Boolean);
+    const viewportWidth = viewportWidthCandidates.length
+      ? Math.max(...viewportWidthCandidates)
+      : 0;
+    const viewportCap = viewportWidth ? viewportWidth * 0.96 : 0;
 
-    const maxWidthPx = Math.min(window.innerWidth * 0.96, contentWidth);
-    if (Math.abs(maxWidthPx - lastWidthApplied) < 0.5) return;
-    lastWidthApplied = maxWidthPx;
-    dock.style.setProperty('--ab-target-width', `${maxWidthPx}px`);
+    const slack = viewportCap ? Math.max(0, viewportCap - baseWidth) : WIDTH_EXTRA_PX;
+    const targetWidth = baseWidth + Math.min(WIDTH_EXTRA_PX, slack);
+    const maxWidthPx = viewportCap ? Math.min(targetWidth, viewportCap) : targetWidth;
+    const finalWidth = Math.max(maxWidthPx, baseWidth);
+
+    if (Math.abs(finalWidth - lastWidthApplied) < 0.5) return;
+    lastWidthApplied = finalWidth;
+    dock.style.setProperty('--ab-target-width', `${finalWidth}px`);
   }
   window.addEventListener('resize', scheduleWidthSync, { passive: true });
   viewport.addEventListener('wheel', handleViewportWheel, { passive: false });
