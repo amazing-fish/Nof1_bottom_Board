@@ -75,7 +75,10 @@
   // 所有视觉样式集中在一处，方便微调颜色、透明度或布局。
   GM_addStyle(`
     #ab-dock {
-      position: fixed; left: 12px; bottom: 12px; z-index: 2147483647;
+      position: fixed;
+      left: calc(var(--ab-viewport-offset-x, 0px) + 12px);
+      bottom: calc(var(--ab-viewport-offset-bottom, 0px) + 12px);
+      z-index: 2147483647;
       pointer-events: none;
       font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI",
                    Roboto,"PingFang SC","Microsoft YaHei","Noto Sans CJK SC", Arial;
@@ -83,7 +86,9 @@
       --gap: 7px; --radius: 14px;
       --pY: 6px; --pX: 10px; --icon: 28px;
       --ab-target-width: calc(4 * 168px + 3 * var(--gap) + 24px + ${WIDTH_EXTRA_PX}px);
-      --ab-viewport-width: 96vw;
+      --ab-viewport-width: 100vw;
+      --ab-viewport-offset-x: 0px;
+      --ab-viewport-offset-bottom: 0px;
       --fsName: 9.5px; --fsVal: 12.5px; --fsSub: 9.5px;
 
       /* ↓↓↓ 更低存在感的玻璃态（降低 blur / saturate / 亮度） ↓↓↓ */
@@ -129,8 +134,8 @@
       border-radius: 16px;
       padding: 6px 10px 8px;
       box-shadow: 0 14px 30px rgba(0,0,0,0.24);
-      width: min(var(--ab-viewport-width, 96vw), var(--ab-target-width));
-      max-width: min(var(--ab-viewport-width, 96vw), var(--ab-target-width));
+      width: min(calc(var(--ab-viewport-width, 100vw) * 0.96), var(--ab-target-width));
+      max-width: min(calc(var(--ab-viewport-width, 100vw) * 0.96), var(--ab-target-width));
       backdrop-filter: saturate(0.75) blur(3px);
       overflow: visible;
     }
@@ -178,7 +183,7 @@
       scrollbar-width: thin;
       scrollbar-color: rgba(255,255,255,0.10) transparent;
       width: 100%;
-      max-width: min(var(--ab-viewport-width, 96vw), var(--ab-target-width));
+      max-width: min(calc(var(--ab-viewport-width, 100vw) * 0.96), var(--ab-target-width));
       padding: 0 10px 8px 10px;
       margin: 0;
     }
@@ -368,9 +373,33 @@
       (body && body.clientWidth) || 0
     );
   }
-  function applyWidthSync(){
+  function syncViewportMetrics(){
     const viewportWidth = getViewportWidth();
     dock.style.setProperty('--ab-viewport-width', `${viewportWidth}px`);
+
+    let offsetX = 0;
+    let offsetBottom = 0;
+    const vv = globalScope.visualViewport;
+    if (vv) {
+      offsetX = Math.max(0, Number(vv.offsetLeft) || 0);
+
+      const body = document.body;
+      const layoutHeight = Math.max(
+        window.innerHeight || 0,
+        (document.documentElement && document.documentElement.clientHeight) || 0,
+        (body && body.clientHeight) || 0
+      );
+      const bottomGap = layoutHeight - (vv.offsetTop + vv.height);
+      if (Number.isFinite(bottomGap)) {
+        offsetBottom = Math.max(0, bottomGap);
+      }
+    }
+
+    dock.style.setProperty('--ab-viewport-offset-x', `${offsetX}px`);
+    dock.style.setProperty('--ab-viewport-offset-bottom', `${offsetBottom}px`);
+  }
+  function applyWidthSync(){
+    syncViewportMetrics();
 
     const cards = Array.from(row.querySelectorAll('.ab-card'));
     if (!cards.length) return;
@@ -405,10 +434,9 @@
 
     const contentWidth = baseWidth + WIDTH_EXTRA_PX;
 
-    const maxWidthPx = Math.min(viewportWidth * 0.96, contentWidth);
-    if (Math.abs(maxWidthPx - lastWidthApplied) < 0.5) return;
-    lastWidthApplied = maxWidthPx;
-    dock.style.setProperty('--ab-target-width', `${maxWidthPx}px`);
+    if (Math.abs(contentWidth - lastWidthApplied) < 0.5) return;
+    lastWidthApplied = contentWidth;
+    dock.style.setProperty('--ab-target-width', `${contentWidth}px`);
   }
   window.addEventListener('resize', scheduleWidthSync, { passive: true });
   if (globalScope.visualViewport) {
@@ -538,6 +566,7 @@
     });
   });
 
+  syncViewportMetrics();
   scheduleWidthSync();
   refreshCardTimes();
 
