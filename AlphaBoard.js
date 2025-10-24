@@ -14,6 +14,16 @@
 (function () {
   'use strict';
 
+  // 仅在顶层窗口注入，并防止重复安装
+  let isTopLevel = true;
+  try { isTopLevel = window.top === window.self; } catch { isTopLevel = false; }
+  if (!isTopLevel) return;
+
+  const globalScope = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
+  const INSTALL_FLAG = '__alphaBoardInstalled__';
+  if (globalScope[INSTALL_FLAG]) return;
+  globalScope[INSTALL_FLAG] = true;
+
   /**
    * Alpha Board 1.1.1
    * ------------------
