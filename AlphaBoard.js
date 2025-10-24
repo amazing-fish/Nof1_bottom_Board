@@ -83,6 +83,7 @@
       --gap: 7px; --radius: 14px;
       --pY: 6px; --pX: 10px; --icon: 28px;
       --ab-target-width: calc(4 * 168px + 3 * var(--gap) + 24px + ${WIDTH_EXTRA_PX}px);
+      --ab-viewport-width: 96vw;
       --fsName: 9.5px; --fsVal: 12.5px; --fsSub: 9.5px;
 
       /* ↓↓↓ 更低存在感的玻璃态（降低 blur / saturate / 亮度） ↓↓↓ */
@@ -128,8 +129,8 @@
       border-radius: 16px;
       padding: 6px 10px 8px;
       box-shadow: 0 14px 30px rgba(0,0,0,0.24);
-      width: min(96vw, var(--ab-target-width));
-      max-width: min(96vw, var(--ab-target-width));
+      width: min(var(--ab-viewport-width, 96vw), var(--ab-target-width));
+      max-width: min(var(--ab-viewport-width, 96vw), var(--ab-target-width));
       backdrop-filter: saturate(0.75) blur(3px);
       overflow: visible;
     }
@@ -177,7 +178,7 @@
       scrollbar-width: thin;
       scrollbar-color: rgba(255,255,255,0.10) transparent;
       width: 100%;
-      max-width: min(96vw, var(--ab-target-width));
+      max-width: min(var(--ab-viewport-width, 96vw), var(--ab-target-width));
       padding: 0 10px 8px 10px;
       margin: 0;
     }
@@ -356,7 +357,21 @@
       applyWidthSync();
     });
   }
+  function getViewportWidth(){
+    const vv = globalScope.visualViewport;
+    if (vv && vv.width) return vv.width;
+    const docEl = document.documentElement;
+    const body = document.body;
+    return Math.max(
+      window.innerWidth || 0,
+      (docEl && docEl.clientWidth) || 0,
+      (body && body.clientWidth) || 0
+    );
+  }
   function applyWidthSync(){
+    const viewportWidth = getViewportWidth();
+    dock.style.setProperty('--ab-viewport-width', `${viewportWidth}px`);
+
     const cards = Array.from(row.querySelectorAll('.ab-card'));
     if (!cards.length) return;
 
@@ -390,12 +405,16 @@
 
     const contentWidth = baseWidth + WIDTH_EXTRA_PX;
 
-    const maxWidthPx = Math.min(window.innerWidth * 0.96, contentWidth);
+    const maxWidthPx = Math.min(viewportWidth * 0.96, contentWidth);
     if (Math.abs(maxWidthPx - lastWidthApplied) < 0.5) return;
     lastWidthApplied = maxWidthPx;
     dock.style.setProperty('--ab-target-width', `${maxWidthPx}px`);
   }
   window.addEventListener('resize', scheduleWidthSync, { passive: true });
+  if (globalScope.visualViewport) {
+    globalScope.visualViewport.addEventListener('resize', scheduleWidthSync, { passive: true });
+    globalScope.visualViewport.addEventListener('scroll', scheduleWidthSync, { passive: true });
+  }
   viewport.addEventListener('wheel', handleViewportWheel, { passive: false });
 
   let wheelAnimId = 0;
