@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Alpha Board（链上盈利数据展示/底部横排暂时/可隐藏/柔和玻璃）
 // @namespace    https://greasyfork.org/zh-CN/users/1211909-amazing-fish
-// @version      1.1.1
+// @version      1.1.2
 // @description  链上实时账户看板 · 默认最小化 · 按模型独立退避 · 轻量玻璃态 UI · 低饱和 P&L · 横排 6 卡片并展示相对更新时间
 // @match        *://*/*
 // @grant        GM_xmlhttpRequest
@@ -14,8 +14,18 @@
 (function () {
   'use strict';
 
+  // 仅在顶层窗口注入，并防止重复安装
+  let isTopLevel = true;
+  try { isTopLevel = window.top === window.self; } catch { isTopLevel = false; }
+  if (!isTopLevel) return;
+
+  const globalScope = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
+  const INSTALL_FLAG = '__alphaBoardInstalled__';
+  if (globalScope[INSTALL_FLAG]) return;
+  globalScope[INSTALL_FLAG] = true;
+
   /**
-   * Alpha Board 1.1.1
+   * Alpha Board 1.1.2
    * ------------------
    *  - 针对多模型地址的链上账户价值聚合看板
    *  - 以 Hyperliquid API 为数据源，独立退避拉取、无本地持久化
