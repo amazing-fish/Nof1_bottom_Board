@@ -1,4 +1,4 @@
-# Alpha Board 1.1.2
+# Alpha Board 1.2.0
 
 Alpha Board 是一个专为多模型交易地址打造的链上账户价值看板，通过浏览器脚本的形式提供轻量、可常驻的实时监控界面。本仓库提供可直接导入 Tampermonkey、Violentmonkey 等油猴扩展的 `AlphaBoard.js` 脚本，默认展示 6 个模型的 Hyperliquid 账户表现。
 
