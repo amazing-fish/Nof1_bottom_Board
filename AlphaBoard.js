@@ -542,7 +542,8 @@
   const CHANNEL_NAME = 'alpha-board-net-sync';
   const bc = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel(CHANNEL_NAME) : null;
   const sharedResultCache = new Map(); // canon addr -> { value, ts, success }
-  const heldLocks = new Set();
+  const heldLocks = new Map(); // storage key -> token
+  const sleep = (ms)=>new Promise(resolve=>setTimeout(resolve, ms));
 
   if (bc) {
     bc.addEventListener('message', (ev)=>{
@@ -565,8 +566,11 @@
     });
 
     globalScope.addEventListener('unload', ()=>{
-      heldLocks.forEach(key=>{
-        try { storage.removeItem(key); } catch {}
+      heldLocks.forEach((token, key)=>{
+        try {
+          const current = safeParseJSON(storage.getItem(key));
+          if (!current || current.owner === TAB_ID) storage.removeItem(key);
+        } catch {}
       });
       heldLocks.clear();
     });
@@ -635,21 +639,33 @@
     return null;
   }
 
-  function tryAcquireLock(canon){
+  async function tryAcquireLock(canon){
     if (!STORAGE_OK || !canon) return false;
     const key = LOCK_PREFIX + canon;
-    const now = Date.now();
-    try {
-      const current = safeParseJSON(storage.getItem(key));
-      if (current && typeof current.ts === 'number' && typeof current.owner === 'string') {
-        if (current.owner !== TAB_ID && (now - current.ts) < LOCK_TIMEOUT_MS) return false;
+    const token = `${TAB_ID}:${Math.random().toString(36).slice(2, 10)}`;
+    let attempt = 0;
+    while (attempt < 4) {
+      attempt += 1;
+      const now = Date.now();
+      try {
+        const current = safeParseJSON(storage.getItem(key));
+        if (current && typeof current.ts === 'number' && typeof current.owner === 'string') {
+          if (current.owner !== TAB_ID && (now - current.ts) < LOCK_TIMEOUT_MS) return false;
+        }
+        const payload = JSON.stringify({ owner: TAB_ID, ts: now, token });
+        storage.setItem(key, payload);
+        await sleep(0);
+        const verify = safeParseJSON(storage.getItem(key));
+        if (verify && verify.owner === TAB_ID && verify.token === token) {
+          heldLocks.set(key, token);
+          return true;
+        }
+      } catch {
+        return false;
       }
-      storage.setItem(key, JSON.stringify({ owner: TAB_ID, ts: now }));
-      const verify = safeParseJSON(storage.getItem(key));
-      const ok = verify && verify.owner === TAB_ID;
-      if (ok) heldLocks.add(key);
-      return !!ok;
-    } catch { return false; }
+      await sleep(5 * attempt);
+    }
+    return false;
   }
 
   function releaseLock(canon){
@@ -657,7 +673,12 @@
     const key = LOCK_PREFIX + canon;
     try {
       const current = safeParseJSON(storage.getItem(key));
-      if (!current || current.owner === TAB_ID) storage.removeItem(key);
+      const token = heldLocks.get(key);
+      if (!current || current.owner !== TAB_ID) {
+        if (!current) storage.removeItem(key);
+      } else if (!current.token || !token || current.token === token) {
+        storage.removeItem(key);
+      }
     } catch { storage?.removeItem?.(key); }
     heldLocks.delete(key);
   }
@@ -736,7 +757,7 @@
 
       let acquired = false;
       if (STORAGE_OK && canon) {
-        acquired = tryAcquireLock(canon);
+        acquired = await tryAcquireLock(canon);
         if (!acquired) {
           scheduleNext(LOCK_RETRY_MS);
           return;
