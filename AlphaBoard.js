@@ -39,6 +39,7 @@
   const FRESH_THRESH_MS = 15000;     // 顶栏“Stale” 阈值
   const JITTER_MS = 250;             // 轮询轻微抖动，避免同时请求
   const BACKOFF_STEPS = [3000, 5000, 8000, 12000]; // 网络失败退避梯度
+  const LOCK_RETRY_MS = 700;         // 未抢到共享锁时的重试间隔
   let   COLLAPSED = true;            // 默认以折叠状态启动
 
   // 默认地址列表：直接在此修改即可，不会弹窗也不写本地存储
@@ -477,13 +478,14 @@
   }
 
   /** ===== 状态与卡片 ===== */
-  const state = new Map();              // key -> { value, addr, ts }
+  const state = new Map();              // key -> { value, addr, addrCanon, ts }
   const cardsByKey = new Map();         // key -> card DOM 节点
   const timeDisplays = new Map();       // key -> 时间显示 DOM
   let   lastOrder = MODELS.map(m=>m.key); // 保留历史顺序以便未来做最小化动画
   let   lastGlobalSuccess = 0;
   let   seenAnySuccess = false;
   const lastValueMap = new Map();       // 涨跌闪烁使用
+  const addrSubscribers = new Map();    // canon addr -> Set<modelKey>
 
   MODELS.forEach((m) => {
     const card = document.createElement('div');
@@ -504,8 +506,15 @@
     cardsByKey.set(m.key, card);
 
     // 初始状态：为每张卡片记住地址和时间显示节点
-    state.set(m.key, { value: null, addr: ADDRRSafe(ADDRS[m.key]), ts: 0 });
+    const addr = ADDRRSafe(ADDRS[m.key]);
+    const canon = canonAddress(addr);
+    state.set(m.key, { value: null, addr, addrCanon: canon, ts: 0 });
     timeDisplays.set(m.key, card.querySelector('.ab-time'));
+
+    if (canon) {
+      if (!addrSubscribers.has(canon)) addrSubscribers.set(canon, new Set());
+      addrSubscribers.get(canon).add(m.key);
+    }
 
     // 复制地址
     card.querySelector('.ab-icon').addEventListener('click', async ()=>{
@@ -523,6 +532,46 @@
   refreshCardTimes();
 
   /** ===== 网络层 ===== */
+  const storage = (()=>{ try { return globalScope.localStorage; } catch { return null; } })();
+  const STORAGE_OK = !!storage;
+  const TAB_ID = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  const CACHE_PREFIX = '__ab_cache__';
+  const LOCK_PREFIX  = '__ab_lock__';
+  const CACHE_TTL_MS = 2500;
+  const LOCK_TIMEOUT_MS = 15000;
+  const CHANNEL_NAME = 'alpha-board-net-sync';
+  const bc = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel(CHANNEL_NAME) : null;
+  const sharedResultCache = new Map(); // canon addr -> { value, ts, success }
+  const heldLocks = new Set();
+
+  if (bc) {
+    bc.addEventListener('message', (ev)=>{
+      const data = ev.data;
+      if (!data || data.type !== 'ab-result') return;
+      if (data.origin === TAB_ID) return;
+      if (typeof data.addr !== 'string') return;
+      handleSharedResult(data.addr, data.payload);
+    });
+  }
+
+  if (STORAGE_OK) {
+    globalScope.addEventListener('storage', (ev)=>{
+      if (!ev.key || !ev.newValue) return;
+      if (ev.key.startsWith(CACHE_PREFIX)) {
+        const addr = ev.key.slice(CACHE_PREFIX.length);
+        const payload = safeParseJSON(ev.newValue);
+        handleSharedResult(addr, payload);
+      }
+    });
+
+    globalScope.addEventListener('unload', ()=>{
+      heldLocks.forEach(key=>{
+        try { storage.removeItem(key); } catch {}
+      });
+      heldLocks.clear();
+    });
+  }
+
   /**
    * 以 GM_xmlhttpRequest POST JSON，统一处理超时/异常。
    * @param {string} url
@@ -561,6 +610,100 @@
     } catch { return null; }
   }
 
+  function tryUseSharedResult(canon, rec){
+    if (!canon) return false;
+    const payload = getFreshSharedResult(canon);
+    if (!payload) return false;
+    if (payload.success) {
+      rec.step = 0;
+    } else {
+      rec.step = Math.min(rec.step + 1, BACKOFF_STEPS.length - 1);
+    }
+    handleSharedResult(canon, payload);
+    return true;
+  }
+
+  function getFreshSharedResult(canon){
+    if (!canon) return null;
+    const now = Date.now();
+    const cached = sharedResultCache.get(canon);
+    if (cached && (now - cached.ts) <= CACHE_TTL_MS) return cached;
+    if (STORAGE_OK) {
+      const stored = readCache(canon);
+      if (stored && (now - stored.ts) <= CACHE_TTL_MS) return stored;
+    }
+    return null;
+  }
+
+  function tryAcquireLock(canon){
+    if (!STORAGE_OK || !canon) return false;
+    const key = LOCK_PREFIX + canon;
+    const now = Date.now();
+    try {
+      const current = safeParseJSON(storage.getItem(key));
+      if (current && typeof current.ts === 'number' && typeof current.owner === 'string') {
+        if (current.owner !== TAB_ID && (now - current.ts) < LOCK_TIMEOUT_MS) return false;
+      }
+      storage.setItem(key, JSON.stringify({ owner: TAB_ID, ts: now }));
+      const verify = safeParseJSON(storage.getItem(key));
+      const ok = verify && verify.owner === TAB_ID;
+      if (ok) heldLocks.add(key);
+      return !!ok;
+    } catch { return false; }
+  }
+
+  function releaseLock(canon){
+    if (!STORAGE_OK || !canon) return;
+    const key = LOCK_PREFIX + canon;
+    try {
+      const current = safeParseJSON(storage.getItem(key));
+      if (!current || current.owner === TAB_ID) storage.removeItem(key);
+    } catch { storage?.removeItem?.(key); }
+    heldLocks.delete(key);
+  }
+
+  function readCache(canon){
+    if (!STORAGE_OK || !canon) return null;
+    try {
+      return safeParseJSON(storage.getItem(CACHE_PREFIX + canon));
+    } catch { return null; }
+  }
+
+  function writeCache(canon, payload){
+    if (!STORAGE_OK || !canon) return;
+    try {
+      storage.setItem(CACHE_PREFIX + canon, JSON.stringify(payload));
+    } catch {}
+  }
+
+  function shareResult(canon, payload){
+    if (!canon || !payload) return;
+    if (STORAGE_OK) writeCache(canon, payload);
+    if (bc) {
+      try { bc.postMessage({ type: 'ab-result', addr: canon, payload, origin: TAB_ID }); } catch {}
+    }
+    handleSharedResult(canon, payload);
+  }
+
+  function handleSharedResult(canon, payload){
+    if (!canon || !payload || typeof payload.ts !== 'number') return;
+    const prev = sharedResultCache.get(canon);
+    if (prev && prev.ts >= payload.ts) return;
+    sharedResultCache.set(canon, payload);
+
+    if (payload.success) {
+      seenAnySuccess = true;
+      lastGlobalSuccess = Math.max(lastGlobalSuccess, payload.ts);
+      const keys = addrSubscribers.get(canon);
+      if (keys) {
+        keys.forEach(key=>{
+          if (state.has(key)) updateCard(key, payload.value, payload.ts);
+        });
+      }
+      updateStatus();
+    }
+  }
+
   /** ===== 按模型独立轮询 + 失败退避 ===== */
   const pollers = new Map(); // key -> { step, timer }
 
@@ -575,6 +718,8 @@
     const run = async () => {
       const s = state.get(mkey);
       const addr = s.addr;
+      const canon = s.addrCanon || canonAddress(addr);
+      if (!s.addrCanon) s.addrCanon = canon;
 
       // 无地址时：视为“不可用”，降频到最高 12s
       if (!addr) {
@@ -584,24 +729,46 @@
         return;
       }
 
-      const val = await fetchAccountValue(addr);
-      if (val == null) {
-        // 失败：退避升级
-        rec.step = Math.min(rec.step + 1, BACKOFF_STEPS.length - 1);
-      } else {
-        // 成功：重置退避 & 更新全局状态
-        rec.step = 0;
-        seenAnySuccess = true;
-        lastGlobalSuccess = Date.now();
-        updateCard(mkey, val);
-        updateStatus(); // 刷新顶栏状态
+      if (tryUseSharedResult(canon, rec)) {
+        scheduleNext();
+        return;
       }
-      scheduleNext();
+
+      let acquired = false;
+      if (STORAGE_OK && canon) {
+        acquired = tryAcquireLock(canon);
+        if (!acquired) {
+          scheduleNext(LOCK_RETRY_MS);
+          return;
+        }
+      }
+
+      try {
+        const val = await fetchAccountValue(addr);
+        const nowTs = Date.now();
+        if (val == null) {
+          rec.step = Math.min(rec.step + 1, BACKOFF_STEPS.length - 1);
+          if (canon) shareResult(canon, { value: null, ts: nowTs, success: false });
+        } else {
+          rec.step = 0;
+          if (canon) {
+            shareResult(canon, { value: val, ts: nowTs, success: true });
+          } else {
+            seenAnySuccess = true;
+            lastGlobalSuccess = nowTs;
+            updateCard(mkey, val, nowTs);
+            updateStatus();
+          }
+        }
+        scheduleNext();
+      } finally {
+        if (acquired && canon) releaseLock(canon);
+      }
     };
 
-    function scheduleNext(){
-      const base = BACKOFF_STEPS[rec.step];
-      const jitter = (Math.random() * 2 - 1) * JITTER_MS;
+    function scheduleNext(customDelay){
+      const base = typeof customDelay === 'number' ? customDelay : BACKOFF_STEPS[rec.step];
+      const jitter = typeof customDelay === 'number' ? 0 : (Math.random() * 2 - 1) * JITTER_MS;
       clearTimeout(rec.timer);
       rec.timer = setTimeout(run, Math.max(0, base + jitter));
     }
@@ -618,7 +785,7 @@
    * @param {string} mkey
    * @param {number|null} value
    */
-  function updateCard(mkey, value){
+  function updateCard(mkey, value, tsOverride){
     const s = state.get(mkey);
     s.value = value;
 
@@ -643,7 +810,7 @@
       const pnl = value - INITIAL_CAPITAL;
       const pct = pnl / INITIAL_CAPITAL;
       subEl.innerHTML = `PnL <span class="${pnl>=0?'pos':'neg'}">${fmtUSD(pnl)} · ${fmtPct(pct)}</span>`;
-      s.ts = Date.now();
+      s.ts = typeof tsOverride === 'number' ? tsOverride : Date.now();
 
       // 涨跌闪烁（更柔和）
       if (typeof prev === 'number' && prev !== value) {
@@ -723,6 +890,8 @@
   setInterval(()=>{ updateStatus(); refreshCardTimes(); }, 1000);
 
   /** ===== 工具函数 ===== */
+  function canonAddress(addr){ return typeof addr === 'string' ? addr.trim().toLowerCase() : ''; }
+  function safeParseJSON(str){ try { return str ? JSON.parse(str) : null; } catch { return null; } }
   /** 清洗地址字符串，避免 undefined/null */
   function ADDRRSafe(addr) { return typeof addr === 'string' ? addr.trim() : ''; }
   /** 统一格式化 USD 文案 */
