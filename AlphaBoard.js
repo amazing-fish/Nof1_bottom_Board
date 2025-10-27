@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Alpha Board（链上盈利数据展示/底部横排暂时/可隐藏/柔和玻璃）
 // @namespace    https://greasyfork.org/zh-CN/users/1211909-amazing-fish
-// @version      1.2.4.1
+// @version      1.2.5
 // @description  链上实时账户看板 · 默认最小化 · 按模型独立退避 · 轻量玻璃态 UI · 低饱和 P&L · 横排 6 卡片并展示相对更新时间
 // @match        *://*/*
 // @grant        GM_xmlhttpRequest
@@ -25,7 +25,7 @@
   globalScope[INSTALL_FLAG] = true;
 
   /**
-   * Alpha Board 1.2.4.1
+   * Alpha Board 1.2.5
    * ------------------
    *  - 针对多模型地址的链上账户价值聚合看板
    *  - 以 Hyperliquid API 为数据源，独立退避拉取、无本地持久化
@@ -289,11 +289,12 @@
       position: absolute;
       inset: 0;
       display: flex;
-      flex-direction: column;
       align-items: center;
       justify-content: center;
+      flex-wrap: wrap;
+      gap: 14px;
       z-index: 2;
-      padding: 16px 16px;
+      padding: 18px 20px;
       border-radius: 14px;
       background:
         linear-gradient(155deg, rgba(255,255,255,0.1), rgba(255,255,255,0.025)),
@@ -304,7 +305,7 @@
       font-size: 13px;
       font-weight: 600;
       letter-spacing: .3px;
-      text-align: center;
+      text-align: left;
       backdrop-filter: saturate(0.85) blur(3px);
       opacity: 0;
       pointer-events: none;
@@ -312,7 +313,86 @@
       visibility: hidden;
       transition: opacity .22s ease, transform .22s ease;
     }
-    #ab-overlay span { opacity: 0.9; text-shadow: 0 0 10px rgba(0,0,0,0.26); }
+    #ab-overlay .ab-feature-card {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 8px;
+      padding: 18px 16px;
+      border-radius: 16px;
+      background:
+        linear-gradient(155deg, rgba(255,255,255,0.12), rgba(255,255,255,0.02)),
+        rgba(18,21,28,0.18);
+      border: 1px solid rgba(255,255,255,0.14);
+      box-shadow: 0 10px 24px rgba(0,0,0,0.22);
+      color: var(--text);
+      text-shadow: 0 0 10px rgba(0,0,0,0.26);
+    }
+    #ab-overlay .ab-feature-mini {
+      align-items: center;
+      text-align: center;
+      width: 132px;
+      min-width: 118px;
+      aspect-ratio: 1;
+      padding: 18px 14px;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.18), rgba(255,255,255,0.04)),
+        rgba(18,21,28,0.12);
+    }
+    #ab-overlay .ab-feature-mini-icon {
+      width: 46px;
+      height: 46px;
+      border-radius: 12px;
+      display: grid;
+      place-items: center;
+      font-size: 22px;
+      font-weight: 700;
+      color: #0d1117;
+      background: rgba(255,255,255,0.85);
+      border: 1px solid rgba(255,255,255,0.46);
+      box-shadow: 0 8px 18px rgba(15,18,26,0.32);
+    }
+    #ab-overlay .ab-feature-mini-title {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: .4px;
+    }
+    #ab-overlay .ab-feature-mini-sub {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: .32px;
+      opacity: 0.88;
+      text-transform: uppercase;
+    }
+    #ab-overlay .ab-feature-placeholder {
+      align-items: flex-start;
+      justify-content: center;
+      flex: 1;
+      min-width: 180px;
+      max-width: 280px;
+      gap: 10px;
+      padding: 18px 20px;
+      background:
+        linear-gradient(155deg, rgba(255,255,255,0.1), rgba(255,255,255,0.02)),
+        rgba(18,21,28,0.18);
+    }
+    #ab-overlay .ab-feature-placeholder h3 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: .4px;
+      color: #f7faff;
+      text-shadow: 0 0 14px rgba(0,0,0,0.32);
+    }
+    #ab-overlay .ab-feature-placeholder p {
+      margin: 0;
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: .26px;
+      color: rgba(230,232,238,0.92);
+      line-height: 1.4;
+      opacity: 0.92;
+    }
     #ab-dock.ab-feature-open #ab-row-viewport {
       overflow: hidden;
       padding-bottom: 0;
@@ -404,7 +484,15 @@
       <div id="ab-row-viewport">
         <div id="ab-row"></div>
         <div id="ab-overlay" role="region" aria-label="Alpha Board 扩展内容" aria-hidden="true">
-          <span>新功能扩展中</span>
+          <div class="ab-feature-card ab-feature-mini" aria-label="Alpha Drop 预览">
+            <div class="ab-feature-mini-icon" aria-hidden="true">α</div>
+            <div class="ab-feature-mini-title">Alpha Drop</div>
+            <div class="ab-feature-mini-sub">Coming Soon</div>
+          </div>
+          <div class="ab-feature-card ab-feature-placeholder">
+            <h3>扩展页建设中</h3>
+            <p>我们正在打磨更多实时洞察，敬请期待下一次更新。</p>
+          </div>
         </div>
       </div>
       <div id="ab-toast" role="status" aria-live="polite"></div>
