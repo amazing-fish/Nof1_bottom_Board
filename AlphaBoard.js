@@ -285,12 +285,13 @@
       .flash-down { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--red)   18%, transparent); }
     }
 
+    /* 扩展页容器与饼图占位卡片（饼图将在后续迭代填充真实数据） */
     #ab-feature-root {
       display: none;
       width: 100%;
       max-width: min(96vw, var(--ab-target-width));
       box-sizing: border-box;
-      padding: 16px 16px;
+      padding: 16px 20px;
       margin: 0;
       border-radius: 14px;
       background:
@@ -302,14 +303,91 @@
       font-size: 13px;
       font-weight: 600;
       letter-spacing: .3px;
-      text-align: center;
+      text-align: left;
       backdrop-filter: saturate(0.85) blur(3px);
       opacity: 0;
       pointer-events: none;
       transform: scale(0.98);
       transition: opacity .22s ease, transform .22s ease;
     }
-    #ab-feature-root span { opacity: 0.9; text-shadow: 0 0 10px rgba(0,0,0,0.26); }
+    #ab-feature-root .ab-feature-grid {
+      display: flex;
+      flex-direction: row;
+      align-items: stretch;
+      justify-content: center;
+      gap: 18px;
+      width: 100%;
+      max-width: 720px;
+      margin: 0 auto;
+    }
+    #ab-feature-root .ab-feature-summary {
+      flex: 1 1 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 10px;
+      text-align: left;
+      opacity: 0.9;
+      text-shadow: 0 0 10px rgba(0,0,0,0.26);
+    }
+    #ab-feature-root .ab-feature-summary p {
+      margin: 0;
+      line-height: 1.6;
+    }
+    #ab-feature-root .ab-feature-pie-card {
+      flex: 0 0 220px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      padding: 18px 16px 20px;
+      border-radius: 16px;
+      background: rgba(17,20,27,0.42);
+      border: 1px solid rgba(255,255,255,0.15);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04);
+    }
+    #ab-feature-root .ab-feature-pie-card h3 {
+      margin: 0;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: .35px;
+      text-transform: uppercase;
+      color: #f9fbff;
+    }
+    #ab-feature-root .ab-feature-pie-placeholder {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      border-radius: 50%;
+      border: 1.5px dashed rgba(255,255,255,0.28);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: .25px;
+      color: rgba(229,231,235,0.85);
+      background: rgba(255,255,255,0.04);
+      box-shadow: inset 0 10px 25px rgba(15,18,26,0.42);
+    }
+    #ab-feature-root .ab-feature-pie-note {
+      margin: 0;
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: .2px;
+      color: rgba(226,232,240,0.68);
+      text-align: center;
+    }
+    @media (max-width: 640px) {
+      #ab-feature-root .ab-feature-grid {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+      }
+      #ab-feature-root .ab-feature-summary {
+        text-align: center;
+      }
+    }
     #ab-dock.ab-feature-open #ab-row-viewport {
       display: none;
     }
@@ -405,7 +483,18 @@
         data-ab-feature-content
         hidden
       >
-        <span>新功能扩展中</span>
+        <!-- 左侧卡片预留后续链上资产饼图 -->
+        <div class="ab-feature-grid">
+          <section class="ab-feature-pie-card" aria-label="资产占比饼图占位">
+            <h3>Asset Mix</h3>
+            <div class="ab-feature-pie-placeholder">Pie Chart Placeholder</div>
+            <p class="ab-feature-pie-note">预留用于账户资产饼图展示</p>
+          </section>
+          <div class="ab-feature-summary">
+            <p>扩展模块筹备中，我们正在整合更详细的模型表现、资产拆分等维度。</p>
+            <p>左侧占位卡片将引入链上资产分布饼图，后续上线时会自动填充真实数据。</p>
+          </div>
+        </div>
       </div>
       <div id="ab-toast" role="status" aria-live="polite"></div>
     </div>
