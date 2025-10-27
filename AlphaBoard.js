@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Alpha Board（链上盈利数据展示/底部横排暂时/可隐藏/柔和玻璃）
 // @namespace    https://greasyfork.org/zh-CN/users/1211909-amazing-fish
-// @version      1.2.5
+// @version      1.2.6
 // @description  链上实时账户看板 · 默认最小化 · 按模型独立退避 · 轻量玻璃态 UI · 低饱和 P&L · 横排 6 卡片并展示相对更新时间
 // @match        *://*/*
 // @grant        GM_xmlhttpRequest
@@ -25,7 +25,7 @@
   globalScope[INSTALL_FLAG] = true;
 
   /**
-   * Alpha Board 1.2.5
+   * Alpha Board 1.2.6
    * ------------------
    *  - 针对多模型地址的链上账户价值聚合看板
    *  - 以 Hyperliquid API 为数据源，独立退避拉取、无本地持久化
@@ -289,8 +289,7 @@
       position: absolute;
       inset: 0;
       display: flex;
-      flex-direction: column;
-      align-items: center;
+      align-items: stretch;
       justify-content: center;
       z-index: 2;
       padding: 16px 16px;
@@ -304,7 +303,7 @@
       font-size: 13px;
       font-weight: 600;
       letter-spacing: .3px;
-      text-align: center;
+      text-align: left;
       backdrop-filter: saturate(0.85) blur(3px);
       opacity: 0;
       pointer-events: none;
@@ -331,10 +330,149 @@
       pointer-events: auto;
       visibility: visible;
     }
-    #ab-dock.ab-feature-open #ab-row {
+    #ab-dock.ab-feature-open #ab-row { 
       opacity: 0;
       pointer-events: none;
       display: none;
+    }
+
+    #ab-overlay .ab-feature-grid {
+      display: flex;
+      flex-direction: row;
+      gap: 16px;
+      width: 100%;
+      max-width: 720px;
+    }
+    #ab-overlay .ab-feature-card {
+      position: relative;
+      flex: 1;
+      background: linear-gradient(155deg, rgba(255,255,255,0.12), rgba(255,255,255,0.03));
+      border: 1px solid rgba(255,255,255,0.16);
+      border-radius: 14px;
+      padding: 16px 18px;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    #ab-overlay .ab-feature-card::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 14px;
+      pointer-events: none;
+      box-shadow: 0 18px 40px rgba(0,0,0,0.28);
+      opacity: 0.4;
+      mix-blend-mode: screen;
+    }
+    #ab-overlay .ab-feature-card > * {
+      position: relative;
+      z-index: 1;
+    }
+    #ab-overlay .ab-feature-chart {
+      flex: 0 0 236px;
+      max-width: 260px;
+      align-items: center;
+      text-align: center;
+    }
+    #ab-overlay .ab-feature-head {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      align-items: flex-start;
+    }
+    #ab-overlay .ab-feature-chart .ab-feature-head {
+      width: 100%;
+      align-items: center;
+    }
+    #ab-overlay .ab-feature-title {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: .35px;
+      color: #f9fbff;
+    }
+    #ab-overlay .ab-feature-tag {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2px 8px;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: .4px;
+      text-transform: uppercase;
+      color: rgba(15,19,26,0.72);
+      background: rgba(248,251,255,0.78);
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.5);
+      box-shadow: 0 6px 16px rgba(0,0,0,0.25);
+    }
+    #ab-overlay .ab-feature-chart-figure {
+      flex: 1;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #ab-overlay .ab-feature-donut {
+      position: relative;
+      width: 168px;
+      height: 168px;
+      border-radius: 50%;
+      background: conic-gradient(
+        rgba(96,165,250,0.65) 0deg,
+        rgba(96,165,250,0.65) 110deg,
+        rgba(236,72,153,0.55) 110deg,
+        rgba(236,72,153,0.55) 215deg,
+        rgba(74,222,128,0.6) 215deg,
+        rgba(74,222,128,0.6) 360deg
+      );
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.45), 0 14px 30px rgba(0,0,0,0.32);
+    }
+    #ab-overlay .ab-feature-donut::after {
+      content: '';
+      position: absolute;
+      inset: 24px;
+      border-radius: 50%;
+      background: rgba(15,19,26,0.82);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
+    }
+    #ab-overlay .ab-feature-donut-center {
+      position: absolute;
+      inset: 24px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: .3px;
+      color: #e0e6f6;
+    }
+    #ab-overlay .ab-feature-placeholder {
+      justify-content: center;
+      font-size: 13px;
+      line-height: 1.6;
+      color: rgba(235,239,255,0.88);
+    }
+    #ab-overlay .ab-feature-placeholder p {
+      margin: 0;
+    }
+    #ab-overlay .ab-feature-note {
+      font-size: 11.5px;
+      font-weight: 500;
+      color: rgba(198,207,230,0.82);
+    }
+    @media (max-width: 720px) {
+      #ab-overlay .ab-feature-grid {
+        flex-direction: column;
+        max-width: none;
+      }
+      #ab-overlay .ab-feature-chart {
+        flex: none;
+        max-width: none;
+      }
+      #ab-overlay .ab-feature-chart .ab-feature-head {
+        align-items: flex-start;
+      }
     }
 
     /* 骨架占位 */
@@ -410,7 +548,32 @@
           role="region"
           aria-label="Alpha Board 扩展内容"
           aria-hidden="true"
-        >新功能扩展中</div>
+        >
+          <div class="ab-feature-grid">
+            <section class="ab-feature-card ab-feature-chart" aria-label="收益分布占位">
+              <header class="ab-feature-head">
+                <span class="ab-feature-tag">预览</span>
+                <h3 class="ab-feature-title">收益分布</h3>
+              </header>
+              <div class="ab-feature-chart-figure" role="presentation">
+                <div class="ab-feature-donut">
+                  <div class="ab-feature-donut-center">
+                    <span>开发中</span>
+                  </div>
+                </div>
+              </div>
+              <p class="ab-feature-note">预留饼图区域，用于展示模型收益权重。</p>
+            </section>
+            <section class="ab-feature-card ab-feature-placeholder" aria-label="扩展功能占位">
+              <header class="ab-feature-head">
+                <span class="ab-feature-tag">Coming Soon</span>
+                <h3 class="ab-feature-title">新功能扩展中</h3>
+              </header>
+              <p>扩展页正在施工，将陆续加入收益分布、资金曲线等补充信息。</p>
+              <p class="ab-feature-note">敬请期待下一次更新。</p>
+            </section>
+          </div>
+        </div>
       </div>
       <div id="ab-toast" role="status" aria-live="polite"></div>
     </div>
