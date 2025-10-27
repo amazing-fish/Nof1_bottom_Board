@@ -140,14 +140,34 @@
     #ab-dock.ab-collapsed #ab-toggle { display: inline-flex; }
     #ab-dock.ab-collapsed #ab-wrap { display: none; }
 
-    #ab-topbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:4px; padding:0; }
-    #ab-left { display:flex; align-items:center; gap:8px; }
+    #ab-topbar { display:grid; grid-template-columns:auto 1fr auto; align-items:center; column-gap:10px; margin-bottom:4px; padding:0; }
+    #ab-left { display:flex; align-items:center; gap:8px; justify-self:start; }
     #ab-title { color:#f7faff; font-size:11px; font-weight:700; letter-spacing:.35px; cursor: pointer; text-transform: uppercase; text-shadow: 0 0 8px rgba(0,0,0,0.35); }
     #ab-status { display:flex; align-items:center; gap:5px; font-size:10.5px; color:#f0f4ff; letter-spacing:.25px; text-shadow: 0 0 8px rgba(0,0,0,0.32); font-weight:500; line-height:1; white-space:nowrap; }
     .ab-dot { width:8px; height:8px; border-radius:50%; background:#9ca3af; }
     .ab-live  { background: var(--green); box-shadow: 0 0 10px color-mix(in srgb, var(--green) 35%, transparent); }
     .ab-warn  { background: #f59e0b;   box-shadow: 0 0 10px rgba(245,158,11,0.30); }
     .ab-dead  { background: var(--red); box-shadow: 0 0 10px color-mix(in srgb, var(--red) 35%, transparent); }
+
+    #ab-expander {
+      pointer-events: auto;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      width:26px;
+      height:26px;
+      border-radius:8px;
+      color:#f5f7ff;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid transparent;
+      cursor:pointer;
+      transition: background .2s ease, border-color .2s ease, transform .15s ease;
+      backdrop-filter: saturate(0.75) blur(3px);
+      justify-self:center;
+    }
+    #ab-expander:hover { background: rgba(255,255,255,0.10); border-color: rgba(255,255,255,0.12); transform: translateY(-1px); }
+    #ab-expander:focus-visible { outline: 2px solid rgba(255,255,255,0.32); outline-offset:2px; }
+    #ab-expander svg { width: 14px; height: 14px; fill: currentColor; }
 
     #ab-link {
       pointer-events: auto;
@@ -162,6 +182,7 @@
       background: rgba(255,255,255,0.05);
       border: 1px solid transparent;
       transition: background .2s ease, border-color .2s ease, transform .15s ease;
+      justify-self:end;
     }
     #ab-link:hover {
       background: rgba(255,255,255,0.10);
@@ -176,14 +197,14 @@
       overflow-x: auto;
       overflow-y: visible;
       scrollbar-width: thin;
-      scrollbar-color: rgba(255,255,255,0.10) transparent;
+      scrollbar-color: rgba(255,255,255,0.16) transparent;
       width: 100%;
       max-width: min(96vw, var(--ab-target-width));
       padding: 0 10px 8px 10px;
       margin: 0;
     }
     #ab-row-viewport::-webkit-scrollbar { height: 4px; }
-    #ab-row-viewport::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 999px; }
+    #ab-row-viewport::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.16); border-radius: 999px; }
 
     #ab-row {
       display:flex;
@@ -260,6 +281,26 @@
       transition: opacity .2s ease, transform .2s ease;
     }
     #ab-toast.show { opacity:1; transform: translateY(0); }
+
+    #ab-wrap { position: relative; }
+    #ab-overlay {
+      position: absolute;
+      inset: 40px 10px 8px 10px;
+      border-radius: calc(var(--radius) + 4px);
+      background: rgba(12,14,18,0.72);
+      border: 1px solid rgba(255,255,255,0.08);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      color: rgba(243,246,255,0.58);
+      font-size: 12px;
+      letter-spacing: .32px;
+      backdrop-filter: saturate(0.65) blur(4px);
+      pointer-events: none;
+    }
+    #ab-wrap.ab-page-active #ab-overlay { display: flex; pointer-events: auto; }
+    #ab-wrap.ab-page-active #ab-row-viewport,
+    #ab-wrap.ab-page-active #ab-toast { display: none; }
   `);
 
   /** ===== DOM ===== */
@@ -277,6 +318,17 @@
             <span id="ab-time">Syncing…</span>
           </div>
         </div>
+        <button
+          id="ab-expander"
+          type="button"
+          aria-label="打开扩展页面"
+          title="打开扩展页面"
+          aria-expanded="false"
+        >
+          <svg viewBox="0 0 20 20" aria-hidden="true">
+            <path d="M5 12.5L10 5l5 7.5H5z" />
+          </svg>
+        </button>
         <a
           id="ab-link"
           href="https://nof1.ai"
@@ -294,6 +346,7 @@
       <div id="ab-row-viewport">
         <div id="ab-row"></div>
       </div>
+      <div id="ab-overlay" aria-hidden="true"></div>
       <div id="ab-toast" role="status" aria-live="polite"></div>
     </div>
   `;
@@ -307,6 +360,26 @@
   const dot      = dock.querySelector('#ab-dot');
   const timeEl   = dock.querySelector('#ab-time');
   const toast    = dock.querySelector('#ab-toast');
+  const expander = dock.querySelector('#ab-expander');
+  const overlay  = dock.querySelector('#ab-overlay');
+
+  const ICON_UP = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 12.5L10 5l5 7.5H5z" /></svg>';
+  const ICON_DOWN = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 7.5L10 15l5-7.5H5z" /></svg>';
+
+  let altPageActive = false;
+
+  function setAltPageActive(active){
+    altPageActive = !!active;
+    if (expander) {
+      expander.innerHTML = altPageActive ? ICON_DOWN : ICON_UP;
+      const label = altPageActive ? '返回主面板' : '打开扩展页面';
+      expander.setAttribute('aria-label', label);
+      expander.setAttribute('title', label);
+      expander.setAttribute('aria-expanded', altPageActive ? 'true' : 'false');
+    }
+    if (overlay) overlay.setAttribute('aria-hidden', altPageActive ? 'false' : 'true');
+    wrap.classList.toggle('ab-page-active', altPageActive);
+  }
 
   // 展开/收起（默认最小化）
   toggle.setAttribute('role', 'button');
@@ -333,7 +406,7 @@
       wrap.setAttribute('aria-hidden', 'false');
     }
   }
-  function minimize(){ COLLAPSED = true;  applyCollapseState(); }
+  function minimize(){ COLLAPSED = true;  applyCollapseState(); setAltPageActive(false); }
   function expand()  { COLLAPSED = false; applyCollapseState(); scheduleWidthSync(); }
   function attachPressHandlers(el, handler){
     el.addEventListener('click', handler);
@@ -345,6 +418,7 @@
   }
   attachPressHandlers(toggle, expand);
   attachPressHandlers(title, minimize);
+  if (expander) attachPressHandlers(expander, ()=>setAltPageActive(!altPageActive));
   minimize();
 
   let widthSyncPending = false;
