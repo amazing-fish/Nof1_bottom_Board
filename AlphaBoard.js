@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Alpha Board（链上盈利数据展示/底部横排暂时/可隐藏/柔和玻璃）
 // @namespace    https://greasyfork.org/zh-CN/users/1211909-amazing-fish
-// @version      1.2.4.1
+// @version      1.2.5
 // @description  链上实时账户看板 · 默认最小化 · 按模型独立退避 · 轻量玻璃态 UI · 低饱和 P&L · 横排 6 卡片并展示相对更新时间
 // @match        *://*/*
 // @grant        GM_xmlhttpRequest
@@ -25,7 +25,7 @@
   globalScope[INSTALL_FLAG] = true;
 
   /**
-   * Alpha Board 1.2.4.1
+   * Alpha Board 1.2.5
    * ------------------
    *  - 针对多模型地址的链上账户价值聚合看板
    *  - 以 Hyperliquid API 为数据源，独立退避拉取、无本地持久化
@@ -289,30 +289,128 @@
       position: absolute;
       inset: 0;
       display: flex;
-      flex-direction: column;
-      align-items: center;
+      align-items: flex-start;
       justify-content: center;
       z-index: 2;
-      padding: 16px 16px;
+      padding: 14px 16px 16px;
       border-radius: 14px;
       background:
-        linear-gradient(155deg, rgba(255,255,255,0.1), rgba(255,255,255,0.025)),
-        rgba(18,21,28,0.26);
-      border: 1px solid rgba(255,255,255,0.12);
-      box-shadow: 0 10px 24px rgba(0,0,0,0.22);
+        linear-gradient(150deg, rgba(255,255,255,0.08), rgba(18,21,28,0.18)),
+        rgba(12,14,18,0.24);
+      border: 1px solid rgba(255,255,255,0.10);
+      box-shadow: 0 10px 24px rgba(0,0,0,0.18);
       color: var(--text);
-      font-size: 13px;
-      font-weight: 600;
-      letter-spacing: .3px;
-      text-align: center;
-      backdrop-filter: saturate(0.85) blur(3px);
+      font-size: 12px;
+      letter-spacing: .25px;
+      text-align: left;
+      backdrop-filter: saturate(0.75) blur(2.8px);
       opacity: 0;
       pointer-events: none;
       transform: scale(0.98);
       visibility: hidden;
       transition: opacity .22s ease, transform .22s ease;
+      overflow: hidden;
+      --ab-feature-scale: 1;
     }
-    #ab-overlay span { opacity: 0.9; text-shadow: 0 0 10px rgba(0,0,0,0.26); }
+    .ab-feature-shell {
+      width: min(720px, 100%);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      transform-origin: top center;
+      transform: scale(var(--ab-feature-scale));
+    }
+    .ab-feature-shell.ab-feature-scaled {
+      margin-top: 2px;
+    }
+    .ab-feature-header {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      align-items: flex-start;
+    }
+    .ab-feature-title {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: .32px;
+      text-transform: uppercase;
+      color: rgba(233,236,245,0.9);
+    }
+    .ab-feature-desc {
+      font-size: 11px;
+      color: rgba(212,219,233,0.68);
+    }
+    .ab-feature-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 10px;
+      width: 100%;
+    }
+    .ab-feature-card {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 12px 12px 14px;
+      border-radius: 12px;
+      background: rgba(18,21,28,0.18);
+      border: 1px solid rgba(255,255,255,0.06);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.03);
+      transition: background .2s ease, border-color .2s ease;
+    }
+    .ab-feature-card:hover {
+      background: rgba(22,26,34,0.24);
+      border-color: rgba(255,255,255,0.10);
+    }
+    .ab-feature-top {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+    .ab-feature-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      border-radius: 8px;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: .4px;
+      color: rgba(20,23,30,0.86);
+      background: rgba(250,252,255,0.7);
+      border: 1px solid rgba(255,255,255,0.20);
+    }
+    .ab-feature-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+    .ab-feature-name {
+      font-size: 11px;
+      font-weight: 600;
+      color: rgba(236,239,247,0.86);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .ab-feature-time {
+      font-size: 10px;
+      color: rgba(194,203,220,0.68);
+    }
+    .ab-feature-value {
+      font-size: 13px;
+      font-weight: 700;
+      color: rgba(245,248,255,0.9);
+      font-variant-numeric: tabular-nums;
+    }
+    .ab-feature-sub {
+      font-size: 10.5px;
+      color: rgba(204,213,228,0.74);
+      font-variant-numeric: tabular-nums;
+    }
+    .ab-feature-card .skeleton { opacity: .7; }
     #ab-dock.ab-feature-open #ab-row-viewport {
       overflow: hidden;
       padding-bottom: 0;
@@ -404,7 +502,13 @@
       <div id="ab-row-viewport">
         <div id="ab-row"></div>
         <div id="ab-overlay" role="region" aria-label="Alpha Board 扩展内容" aria-hidden="true">
-          <span>新功能扩展中</span>
+          <div class="ab-feature-shell">
+            <header class="ab-feature-header">
+              <span class="ab-feature-title">Alpha Board · 扩展视图</span>
+              <span class="ab-feature-desc">模型账户实时扩展信息</span>
+            </header>
+            <div class="ab-feature-grid" role="list"></div>
+          </div>
         </div>
       </div>
       <div id="ab-toast" role="status" aria-live="polite"></div>
@@ -419,6 +523,8 @@
   const title      = dock.querySelector('#ab-title');
   const expandBtn  = dock.querySelector('#ab-expand-btn');
   const overlay    = dock.querySelector('#ab-overlay');
+  const featureShell = overlay ? overlay.querySelector('.ab-feature-shell') : null;
+  const featureGrid  = overlay ? overlay.querySelector('.ab-feature-grid') : null;
   const dot        = dock.querySelector('#ab-dot');
   const timeEl     = dock.querySelector('#ab-time');
   const toast      = dock.querySelector('#ab-toast');
@@ -451,19 +557,23 @@
   function minimize(){ COLLAPSED = true;  applyCollapseState(); }
   function expand()  { COLLAPSED = false; applyCollapseState(); scheduleWidthSync(); }
   let FEATURE_EXPANDED = false;
+  let featureViewportHeight = 0;
+  let featureScalePending = false;
   function setFeatureState(next){
     const nextExpanded = !!next;
     if (viewport) {
       if (nextExpanded) {
         const rect = viewport.getBoundingClientRect();
-        const measured = rect.height || viewport.scrollHeight;
-        if (measured) {
-          viewport.style.minHeight = `${measured}px`;
+        const measured = rect.height || viewport.clientHeight || viewport.scrollHeight || 0;
+        if (measured) featureViewportHeight = measured;
+        if (featureViewportHeight) {
+          viewport.style.minHeight = `${featureViewportHeight}px`;
         } else {
           viewport.style.removeProperty('min-height');
         }
       } else {
         viewport.style.removeProperty('min-height');
+        featureViewportHeight = 0;
       }
     }
     FEATURE_EXPANDED = nextExpanded;
@@ -476,6 +586,13 @@
       expandBtn.classList.toggle('expanded', FEATURE_EXPANDED);
     }
     if (overlay) overlay.setAttribute('aria-hidden', FEATURE_EXPANDED ? 'false' : 'true');
+    if (!FEATURE_EXPANDED) {
+      if (overlay) overlay.style.removeProperty('--ab-feature-scale');
+      if (featureShell) featureShell.classList.remove('ab-feature-scaled');
+      featureScalePending = false;
+    } else {
+      scheduleFeatureScale();
+    }
   }
   function toggleFeature(){ setFeatureState(!FEATURE_EXPANDED); }
   function attachPressHandlers(el, handler){
@@ -542,9 +659,51 @@
     if (Math.abs(maxWidthPx - lastWidthApplied) < 0.5) return;
     lastWidthApplied = maxWidthPx;
     dock.style.setProperty('--ab-target-width', `${maxWidthPx}px`);
+    if (FEATURE_EXPANDED) scheduleFeatureScale();
   }
   window.addEventListener('resize', scheduleWidthSync, { passive: true });
+  window.addEventListener('resize', ()=>{ if (FEATURE_EXPANDED) scheduleFeatureScale(); }, { passive: true });
   viewport.addEventListener('wheel', handleViewportWheel, { passive: false });
+
+  function scheduleFeatureScale(){
+    if (!FEATURE_EXPANDED) return;
+    if (featureScalePending) return;
+    featureScalePending = true;
+    requestAnimationFrame(()=>{
+      featureScalePending = false;
+      applyFeatureScale();
+    });
+  }
+
+  function applyFeatureScale(){
+    if (!FEATURE_EXPANDED || !overlay || !featureShell) return;
+    const rect = viewport.getBoundingClientRect();
+    const fallback = rect.height || viewport.clientHeight || viewport.scrollHeight || featureViewportHeight || 0;
+    if ((!featureViewportHeight && fallback) || (fallback && fallback < featureViewportHeight)) {
+      featureViewportHeight = fallback;
+      if (featureViewportHeight && viewport) {
+        viewport.style.minHeight = `${featureViewportHeight}px`;
+      }
+    }
+
+    const limit = featureViewportHeight || fallback;
+    const innerHeight = featureShell.scrollHeight;
+    if (!limit || !innerHeight) {
+      overlay.style.removeProperty('--ab-feature-scale');
+      featureShell.classList.remove('ab-feature-scaled');
+      return;
+    }
+
+    const scale = Math.min(1, limit / innerHeight);
+    if (!Number.isFinite(scale) || scale >= 0.999) {
+      overlay.style.removeProperty('--ab-feature-scale');
+      featureShell.classList.remove('ab-feature-scaled');
+      return;
+    }
+
+    overlay.style.setProperty('--ab-feature-scale', scale.toFixed(4));
+    featureShell.classList.add('ab-feature-scaled');
+  }
 
   let wheelAnimId = 0;
   let wheelAnimStart = 0;
@@ -626,13 +785,24 @@
 
   /** ===== 状态与卡片 ===== */
   const state = new Map();              // key -> { value, addr, addrCanon, ts }
-  const cardsByKey = new Map();         // key -> card DOM 节点
-  const timeDisplays = new Map();       // key -> 时间显示 DOM
+  const cardsByKey = new Map();         // key -> 主视图卡片 DOM 节点
+  const featureCardsByKey = new Map();  // key -> 扩展页卡片 DOM 节点
+  const timeDisplays = new Map();       // key -> Set<时间显示 DOM>
   let   lastOrder = MODELS.map(m=>m.key); // 保留历史顺序以便未来做最小化动画
   let   lastGlobalSuccess = 0;
   let   seenAnySuccess = false;
   const lastValueMap = new Map();       // 涨跌闪烁使用
   const addrSubscribers = new Map();    // canon addr -> Set<modelKey>
+
+  function addTimeDisplay(key, el){
+    if (!el) return;
+    let bucket = timeDisplays.get(key);
+    if (!bucket) {
+      bucket = new Set();
+      timeDisplays.set(key, bucket);
+    }
+    bucket.add(el);
+  }
 
   MODELS.forEach((m) => {
     const card = document.createElement('div');
@@ -656,7 +826,30 @@
     const addr = ADDRRSafe(ADDRS[m.key]);
     const canon = canonAddress(addr);
     state.set(m.key, { value: null, addr, addrCanon: canon, ts: 0 });
-    timeDisplays.set(m.key, card.querySelector('.ab-time'));
+    addTimeDisplay(m.key, card.querySelector('.ab-time'));
+
+    if (featureGrid) {
+      const featureCard = document.createElement('div');
+      featureCard.className = 'ab-feature-card';
+      featureCard.setAttribute('data-key', m.key);
+      featureCard.setAttribute('role', 'listitem');
+      const featureTimeText = addr ? '等待数据' : '未配置';
+      const featureSubText = addr ? '等待数据…' : '地址未配置';
+      featureCard.innerHTML = `
+        <div class="ab-feature-top">
+          <span class="ab-feature-badge">${m.badge}</span>
+          <div class="ab-feature-meta">
+            <span class="ab-feature-name" title="${m.key}">${m.key}</span>
+            <span class="ab-feature-time">${featureTimeText}</span>
+          </div>
+        </div>
+        <div class="ab-feature-value"><span class="skeleton" style="width:110px;"></span></div>
+        <div class="ab-feature-sub">${featureSubText}</div>
+      `;
+      featureGrid.appendChild(featureCard);
+      featureCardsByKey.set(m.key, featureCard);
+      addTimeDisplay(m.key, featureCard.querySelector('.ab-feature-time'));
+    }
 
     if (canon) {
       if (!addrSubscribers.has(canon)) addrSubscribers.set(canon, new Set());
@@ -968,6 +1161,8 @@
     const el = cardsByKey.get(mkey);
     const valEl = el.querySelector('.ab-val');
     const subEl = el.querySelector('.ab-sub');
+    let pnlValue = null;
+    let pctValue = null;
     if (value == null) {
       valEl.innerHTML = '<span class="skeleton" style="width:120px;"></span>';
       subEl.textContent = s.addr ? '等待数据…' : '地址未配置';
@@ -975,9 +1170,9 @@
     } else {
       const prev = lastValueMap.get(mkey);
       valEl.textContent = fmtUSD(value);
-      const pnl = value - INITIAL_CAPITAL;
-      const pct = pnl / INITIAL_CAPITAL;
-      subEl.innerHTML = `PnL <span class="${pnl>=0?'pos':'neg'}">${fmtUSD(pnl)} · ${fmtPct(pct)}</span>`;
+      pnlValue = value - INITIAL_CAPITAL;
+      pctValue = pnlValue / INITIAL_CAPITAL;
+      subEl.innerHTML = `PnL <span class="${pnlValue>=0?'pos':'neg'}">${fmtUSD(pnlValue)} · ${fmtPct(pctValue)}</span>`;
       s.ts = typeof tsOverride === 'number' ? tsOverride : Date.now();
 
       // 涨跌闪烁（更柔和）
@@ -988,6 +1183,19 @@
         setTimeout(()=>el.classList.remove('flash-up','flash-down'), 260);
       }
       lastValueMap.set(mkey, value);
+    }
+
+    const featureCard = featureCardsByKey.get(mkey);
+    if (featureCard) {
+      const featureValueEl = featureCard.querySelector('.ab-feature-value');
+      const featureSubEl = featureCard.querySelector('.ab-feature-sub');
+      if (value == null) {
+        featureValueEl.innerHTML = '<span class="skeleton" style="width:120px;"></span>';
+        featureSubEl.textContent = s.addr ? '等待数据…' : '地址未配置';
+      } else {
+        featureValueEl.textContent = fmtUSD(value);
+        featureSubEl.innerHTML = `PnL <span class="${pnlValue>=0?'pos':'neg'}">${fmtUSD(pnlValue)} · ${fmtPct(pctValue)}</span>`;
+      }
     }
 
     // 重排：按最新值排序（不显示名次，仅内部排序）
@@ -1023,6 +1231,7 @@
     lastOrder = newOrder;
     refreshCardTimes();
     scheduleWidthSync();
+    scheduleFeatureScale();
   }
 
   /** ===== 顶栏状态：Live / Stale / Dead ===== */
@@ -1045,13 +1254,15 @@
    */
   function refreshCardTimes(){
     const now = Date.now();
-    timeDisplays.forEach((el, key)=>{
-      if (!el) return;
+    timeDisplays.forEach((elements, key)=>{
       const s = state.get(key);
-      if (!s) return;
-      if (!s.addr) { el.textContent = '未配置'; return; }
-      if (!s.ts) { el.textContent = '等待数据'; return; }
-      el.textContent = fmtSince(s.ts, now);
+      elements.forEach(el=>{
+        if (!el) return;
+        if (!s) { el.textContent = '—'; return; }
+        if (!s.addr) { el.textContent = '未配置'; return; }
+        if (!s.ts) { el.textContent = '等待数据'; return; }
+        el.textContent = fmtSince(s.ts, now);
+      });
     });
   }
   // 轻量 UI 刷新：仅更新文本与状态点，不追加网络请求
