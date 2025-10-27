@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Alpha Board（链上盈利数据展示/底部横排暂时/可隐藏/柔和玻璃）
 // @namespace    https://greasyfork.org/zh-CN/users/1211909-amazing-fish
-// @version      1.2.4.1
+// @version      1.2.5
 // @description  链上实时账户看板 · 默认最小化 · 按模型独立退避 · 轻量玻璃态 UI · 低饱和 P&L · 横排 6 卡片并展示相对更新时间
 // @match        *://*/*
 // @grant        GM_xmlhttpRequest
@@ -25,7 +25,7 @@
   globalScope[INSTALL_FLAG] = true;
 
   /**
-   * Alpha Board 1.2.4.1
+   * Alpha Board 1.2.5
    * ------------------
    *  - 针对多模型地址的链上账户价值聚合看板
    *  - 以 Hyperliquid API 为数据源，独立退避拉取、无本地持久化
@@ -60,6 +60,27 @@
     { key: 'Grok-4', badge: 'GRK' },
     { key: 'DeepSeek V3.1', badge: 'DSK' },
     { key: 'Qwen3-Max', badge: 'QWN' },
+  ];
+
+  const FEATURE_ITEMS = [
+    {
+      title: 'Alpha Signals',
+      status: '开发中',
+      description: '聚焦多模型高频表现的实时盈亏拆解，辅助规划组合调仓节奏。',
+      href: 'https://nof1.ai',
+    },
+    {
+      title: '模型对照实验',
+      status: '设计阶段',
+      description: '以场景化实验框架拆解胜率与波动，定位策略之间的风格差异。',
+      href: null,
+    },
+    {
+      title: '反馈共创',
+      status: '加入社区',
+      description: '欢迎在 Nof1 社区提出对 Alpha Board 的想法与需求，共建更轻盈的链上看板体验。',
+      href: 'https://nof1.ai',
+    },
   ];
 
   const VISIBLE_CARD_COUNT = 4;
@@ -289,30 +310,118 @@
       position: absolute;
       inset: 0;
       display: flex;
-      flex-direction: column;
-      align-items: center;
+      align-items: stretch;
       justify-content: center;
       z-index: 2;
-      padding: 16px 16px;
+      padding: 18px 18px 20px;
       border-radius: 14px;
       background:
-        linear-gradient(155deg, rgba(255,255,255,0.1), rgba(255,255,255,0.025)),
-        rgba(18,21,28,0.26);
-      border: 1px solid rgba(255,255,255,0.12);
-      box-shadow: 0 10px 24px rgba(0,0,0,0.22);
+        linear-gradient(160deg, rgba(255,255,255,0.06), rgba(255,255,255,0.015)),
+        rgba(14,17,22,0.24);
+      border: 1px solid rgba(255,255,255,0.10);
+      box-shadow: 0 12px 26px rgba(0,0,0,0.2);
       color: var(--text);
-      font-size: 13px;
-      font-weight: 600;
-      letter-spacing: .3px;
-      text-align: center;
-      backdrop-filter: saturate(0.85) blur(3px);
+      text-align: left;
+      backdrop-filter: saturate(0.7) blur(3px);
       opacity: 0;
       pointer-events: none;
-      transform: scale(0.98);
+      transform: scale(0.985);
+      transform-origin: top center;
       visibility: hidden;
       transition: opacity .22s ease, transform .22s ease;
+      overflow: hidden;
+      --feature-scale: 1;
     }
-    #ab-overlay span { opacity: 0.9; text-shadow: 0 0 10px rgba(0,0,0,0.26); }
+    #ab-overlay .ab-feature-main {
+      width: 100%;
+      max-width: 720px;
+      margin: 0 auto;
+      display: grid;
+      gap: 18px;
+      transform: scale(var(--feature-scale));
+      transform-origin: top center;
+    }
+    #ab-overlay .ab-feature-head {
+      display: grid;
+      gap: 6px;
+    }
+    #ab-overlay .ab-feature-kicker {
+      font-size: 10px;
+      letter-spacing: .28px;
+      text-transform: uppercase;
+      color: rgba(235,238,255,0.72);
+    }
+    #ab-overlay .ab-feature-title {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: .35px;
+      color: #f6f8ff;
+      text-shadow: 0 0 12px rgba(0,0,0,0.28);
+    }
+    #ab-overlay .ab-feature-desc {
+      font-size: 12px;
+      color: #c5cfdf;
+      line-height: 1.55;
+      max-width: 540px;
+    }
+    #ab-overlay .ab-feature-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+    }
+    #ab-overlay .ab-feature-card {
+      position: relative;
+      display: grid;
+      gap: 8px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.06);
+      background: rgba(15,18,24,0.18);
+      color: #d8e1f2;
+      font-size: 12px;
+      line-height: 1.55;
+      text-decoration: none;
+      transition: background .2s ease, border-color .2s ease, transform .2s ease;
+      box-shadow: none;
+    }
+    #ab-overlay .ab-feature-card:hover {
+      border-color: rgba(255,255,255,0.1);
+      background: rgba(18,22,30,0.22);
+      transform: translateY(-1px);
+    }
+    #ab-overlay .ab-feature-card:focus-visible {
+      outline: 2px solid rgba(96,165,250,0.5);
+      outline-offset: 2px;
+    }
+    #ab-overlay .ab-feature-status {
+      display: inline-flex;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 2px 6px;
+      border-radius: 999px;
+      font-size: 10px;
+      letter-spacing: .25px;
+      color: rgba(236,239,255,0.78);
+      background: rgba(255,255,255,0.08);
+    }
+    #ab-overlay .ab-feature-name {
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: .22px;
+      color: #f0f5ff;
+    }
+    #ab-overlay .ab-feature-text {
+      font-size: 12px;
+      color: #c9d3e7;
+      line-height: 1.55;
+    }
+    #ab-overlay.ab-overlay-scaled .ab-feature-grid {
+      gap: 10px;
+    }
+    #ab-overlay.ab-overlay-scaled .ab-feature-card {
+      border-color: rgba(255,255,255,0.05);
+      background: rgba(14,17,22,0.16);
+    }
     #ab-dock.ab-feature-open #ab-row-viewport {
       overflow: hidden;
       padding-bottom: 0;
@@ -403,9 +512,7 @@
       </div>
       <div id="ab-row-viewport">
         <div id="ab-row"></div>
-        <div id="ab-overlay" role="region" aria-label="Alpha Board 扩展内容" aria-hidden="true">
-          <span>新功能扩展中</span>
-        </div>
+        <div id="ab-overlay" role="region" aria-label="Alpha Board 扩展内容" aria-hidden="true"></div>
       </div>
       <div id="ab-toast" role="status" aria-live="polite"></div>
     </div>
@@ -422,6 +529,8 @@
   const dot        = dock.querySelector('#ab-dot');
   const timeEl     = dock.querySelector('#ab-time');
   const toast      = dock.querySelector('#ab-toast');
+
+  const featureMain = overlay ? renderFeatureOverlay(overlay) : null;
 
   // 展开/收起（默认最小化）
   toggle.setAttribute('role', 'button');
@@ -451,14 +560,18 @@
   function minimize(){ COLLAPSED = true;  applyCollapseState(); }
   function expand()  { COLLAPSED = false; applyCollapseState(); scheduleWidthSync(); }
   let FEATURE_EXPANDED = false;
+  let featureScaleFrame = 0;
+  let pendingFeatureHeight = 0;
+  let lastFeatureScale = 1;
   function setFeatureState(next){
     const nextExpanded = !!next;
+    let measuredHeight = 0;
     if (viewport) {
       if (nextExpanded) {
         const rect = viewport.getBoundingClientRect();
-        const measured = rect.height || viewport.scrollHeight;
-        if (measured) {
-          viewport.style.minHeight = `${measured}px`;
+        measuredHeight = rect.height || viewport.scrollHeight;
+        if (measuredHeight) {
+          viewport.style.minHeight = `${measuredHeight}px`;
         } else {
           viewport.style.removeProperty('min-height');
         }
@@ -476,8 +589,145 @@
       expandBtn.classList.toggle('expanded', FEATURE_EXPANDED);
     }
     if (overlay) overlay.setAttribute('aria-hidden', FEATURE_EXPANDED ? 'false' : 'true');
+    if (FEATURE_EXPANDED) {
+      scheduleFeatureScale(measuredHeight);
+    } else {
+      resetFeatureScale();
+    }
   }
   function toggleFeature(){ setFeatureState(!FEATURE_EXPANDED); }
+
+  function renderFeatureOverlay(root){
+    if (!root) return null;
+    root.innerHTML = '';
+
+    const main = document.createElement('div');
+    main.className = 'ab-feature-main';
+
+    const head = document.createElement('div');
+    head.className = 'ab-feature-head';
+    head.innerHTML = `
+      <span class="ab-feature-kicker">Alpha Board · Labs</span>
+      <div class="ab-feature-title">拓展实验室</div>
+      <p class="ab-feature-desc">Alpha Board 正在筹备更细腻的链上解构能力，以下模块抢先预览即将上线的方向。</p>
+    `;
+    main.appendChild(head);
+
+    if (FEATURE_ITEMS.length) {
+      const grid = document.createElement('div');
+      grid.className = 'ab-feature-grid';
+      grid.setAttribute('role', 'list');
+
+      FEATURE_ITEMS.forEach((item) => {
+        const hasLink = typeof item.href === 'string' && item.href.trim().length > 0;
+        const el = document.createElement(hasLink ? 'a' : 'div');
+        el.className = 'ab-feature-card';
+        el.setAttribute('role', 'listitem');
+        if (hasLink) {
+          el.href = item.href;
+          el.target = '_blank';
+          el.rel = 'noopener noreferrer';
+        }
+
+        if (item.status) {
+          const status = document.createElement('span');
+          status.className = 'ab-feature-status';
+          status.textContent = item.status;
+          el.appendChild(status);
+        }
+
+        const name = document.createElement('div');
+        name.className = 'ab-feature-name';
+        name.textContent = item.title;
+        el.appendChild(name);
+
+        if (item.description) {
+          const text = document.createElement('p');
+          text.className = 'ab-feature-text';
+          text.textContent = item.description;
+          el.appendChild(text);
+        }
+
+        grid.appendChild(el);
+      });
+
+      main.appendChild(grid);
+    }
+
+    root.appendChild(main);
+    return main;
+  }
+
+  function resetFeatureScale(){
+    cancelFeatureScale();
+    if (!overlay) return;
+    overlay.style.removeProperty('--feature-scale');
+    overlay.classList.remove('ab-overlay-scaled');
+    lastFeatureScale = 1;
+  }
+
+  function scheduleFeatureScale(limitHeight){
+    if (!FEATURE_EXPANDED) return;
+    if (typeof limitHeight === 'number' && limitHeight > 0) {
+      pendingFeatureHeight = limitHeight;
+    }
+    if (featureScaleFrame) return;
+    featureScaleFrame = requestAnimationFrame(()=>{
+      featureScaleFrame = 0;
+      const base = pendingFeatureHeight || (viewport ? (viewport.getBoundingClientRect().height || viewport.scrollHeight) : 0) || 0;
+      pendingFeatureHeight = 0;
+      updateFeatureScale(base);
+    });
+  }
+
+  function cancelFeatureScale(){
+    if (featureScaleFrame) cancelAnimationFrame(featureScaleFrame);
+    featureScaleFrame = 0;
+    pendingFeatureHeight = 0;
+  }
+
+  function updateFeatureScale(limitHeight){
+    if (!overlay || !featureMain) return;
+    const prevScale = lastFeatureScale || 1;
+    const availableHeight = typeof limitHeight === 'number' && limitHeight > 0
+      ? limitHeight
+      : (viewport ? (viewport.getBoundingClientRect().height || viewport.scrollHeight) : 0);
+    if (!availableHeight) {
+      overlay.style.setProperty('--feature-scale', `${prevScale}`);
+      overlay.classList.toggle('ab-overlay-scaled', prevScale < 0.999);
+      return;
+    }
+
+    overlay.style.setProperty('--feature-scale', '1');
+    const styles = getComputedStyle(overlay);
+    const padTop = parseFloat(styles.paddingTop || '0') || 0;
+    const padBottom = parseFloat(styles.paddingBottom || '0') || 0;
+    const limit = Math.max(0, availableHeight - padTop - padBottom);
+    const contentHeight = featureMain.offsetHeight;
+
+    if (!contentHeight) {
+      overlay.style.setProperty('--feature-scale', `${prevScale}`);
+      overlay.classList.toggle('ab-overlay-scaled', prevScale < 0.999);
+      return;
+    }
+
+    let nextScale = limit > 0 ? limit / contentHeight : 1;
+    if (!Number.isFinite(nextScale) || nextScale <= 0) nextScale = 1;
+    if (nextScale > 1) nextScale = 1;
+    const MIN_SCALE = 0.65;
+    if (nextScale < MIN_SCALE) nextScale = MIN_SCALE;
+
+    if (Math.abs(nextScale - prevScale) < 0.005) {
+      overlay.style.setProperty('--feature-scale', `${prevScale}`);
+      overlay.classList.toggle('ab-overlay-scaled', prevScale < 0.999);
+      return;
+    }
+
+    overlay.style.setProperty('--feature-scale', `${nextScale}`);
+    overlay.classList.toggle('ab-overlay-scaled', nextScale < 0.999);
+    lastFeatureScale = nextScale;
+  }
+
   function attachPressHandlers(el, handler){
     el.addEventListener('click', handler);
     const tagName = (el.tagName || '').toLowerCase();
@@ -543,7 +793,10 @@
     lastWidthApplied = maxWidthPx;
     dock.style.setProperty('--ab-target-width', `${maxWidthPx}px`);
   }
-  window.addEventListener('resize', scheduleWidthSync, { passive: true });
+  window.addEventListener('resize', ()=>{
+    scheduleWidthSync();
+    scheduleFeatureScale();
+  }, { passive: true });
   viewport.addEventListener('wheel', handleViewportWheel, { passive: false });
 
   let wheelAnimId = 0;
