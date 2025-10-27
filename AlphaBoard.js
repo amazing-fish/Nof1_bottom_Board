@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Alpha Board（链上盈利数据展示/底部横排暂时/可隐藏/柔和玻璃）
 // @namespace    https://greasyfork.org/zh-CN/users/1211909-amazing-fish
-// @version      1.2.1
+// @version      1.2.2
 // @description  链上实时账户看板 · 默认最小化 · 按模型独立退避 · 轻量玻璃态 UI · 低饱和 P&L · 横排 6 卡片并展示相对更新时间
 // @match        *://*/*
 // @grant        GM_xmlhttpRequest
@@ -25,7 +25,7 @@
   globalScope[INSTALL_FLAG] = true;
 
   /**
-   * Alpha Board 1.2.1
+   * Alpha Board 1.2.2
    * ------------------
    *  - 针对多模型地址的链上账户价值聚合看板
    *  - 以 Hyperliquid API 为数据源，独立退避拉取、无本地持久化
@@ -177,24 +177,24 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 28px;
-      height: 28px;
-      border-radius: 10px;
-      background: linear-gradient(160deg, rgba(255,255,255,0.12), rgba(255,255,255,0.02)), rgba(18,21,28,0.28);
-      border: 1px solid rgba(255,255,255,0.16);
+      width: 26px;
+      height: 26px;
+      border-radius: 8px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.12);
       color: #f5f7ff;
       font-size: 14px;
       font-weight: 600;
       line-height: 1;
       cursor: pointer;
-      backdrop-filter: saturate(0.8) blur(4px);
-      box-shadow: 0 8px 20px rgba(0,0,0,0.24);
-      transition: background .2s ease, border-color .2s ease, transform .15s ease, box-shadow .2s ease;
+      backdrop-filter: saturate(0.85) blur(3px);
+      box-shadow: 0 6px 16px rgba(0,0,0,0.18);
+      transition: background .2s ease, border-color .2s ease, transform .15s ease, box-shadow .2s ease, color .2s ease;
     }
     #ab-expand-btn:hover {
-      background: linear-gradient(160deg, rgba(255,255,255,0.18), rgba(255,255,255,0.04)), rgba(24,28,38,0.36);
-      border-color: rgba(255,255,255,0.22);
-      box-shadow: 0 10px 24px rgba(0,0,0,0.26);
+      background: rgba(255,255,255,0.14);
+      border-color: rgba(255,255,255,0.18);
+      box-shadow: 0 8px 20px rgba(0,0,0,0.22);
       transform: translateY(-1px);
     }
     #ab-expand-btn:active { transform: scale(0.95); }
@@ -223,6 +223,7 @@
       flex-wrap: nowrap;
       gap: var(--gap);
       padding-right: 4px;
+      transition: opacity .2s ease;
     }
 
     .ab-card {
@@ -274,29 +275,35 @@
     }
 
     #ab-overlay {
-      display: none;
-      width: 100%;
-      min-height: 140px;
-      margin-top: 6px;
-      border-radius: 16px;
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 2;
+      padding: 40px 24px;
+      border-radius: 14px;
       background:
-        linear-gradient(155deg, rgba(255,255,255,0.08), rgba(255,255,255,0.015)),
-        rgba(18,21,28,0.28);
+        linear-gradient(155deg, rgba(255,255,255,0.1), rgba(255,255,255,0.025)),
+        rgba(18,21,28,0.26);
       border: 1px solid rgba(255,255,255,0.12);
-      padding: 48px 24px;
-      box-shadow: 0 14px 30px rgba(0,0,0,0.24);
+      box-shadow: 0 10px 24px rgba(0,0,0,0.22);
       color: var(--text);
       font-size: 13px;
       font-weight: 600;
       letter-spacing: .3px;
-      justify-content: center;
-      align-items: center;
       text-align: center;
-      backdrop-filter: saturate(0.8) blur(3px);
+      backdrop-filter: saturate(0.85) blur(3px);
+      opacity: 0;
+      pointer-events: none;
+      transform: scale(0.98);
+      visibility: hidden;
+      transition: opacity .22s ease, transform .22s ease;
     }
     #ab-overlay span { opacity: 0.9; text-shadow: 0 0 10px rgba(0,0,0,0.26); }
-    #ab-dock.ab-feature-open #ab-row-viewport { display: none; }
-    #ab-dock.ab-feature-open #ab-overlay { display: flex; flex-direction: column; }
+    #ab-dock.ab-feature-open #ab-overlay { opacity: 1; pointer-events: auto; transform: scale(1); visibility: visible; }
+    #ab-dock.ab-feature-open #ab-row { opacity: 0; pointer-events: none; }
 
     /* 骨架占位 */
     .skeleton {
@@ -362,9 +369,9 @@
       </div>
       <div id="ab-row-viewport">
         <div id="ab-row"></div>
-      </div>
-      <div id="ab-overlay" role="region" aria-label="Alpha Board 扩展内容" aria-hidden="true">
-        <span>新功能扩展中</span>
+        <div id="ab-overlay" role="region" aria-label="Alpha Board 扩展内容" aria-hidden="true">
+          <span>新功能扩展中</span>
+        </div>
       </div>
       <div id="ab-toast" role="status" aria-live="polite"></div>
     </div>
