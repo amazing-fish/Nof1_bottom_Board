@@ -448,6 +448,7 @@
 
   let widthSyncPending = false;
   let lastWidthApplied = 0;
+  let layoutMetrics = null;
   function scheduleWidthSync(){
     if (widthSyncPending) return;
     widthSyncPending = true;
@@ -455,6 +456,19 @@
       widthSyncPending = false;
       applyWidthSync();
     });
+  }
+  function readLayoutMetrics(){
+    if (layoutMetrics) return layoutMetrics;
+    const rowStyles = getComputedStyle(row);
+    const viewportStyles = getComputedStyle(viewport);
+    layoutMetrics = {
+      gap: parseFloat(rowStyles.gap || rowStyles.columnGap || '0') || 0,
+      rowPadL: parseFloat(rowStyles.paddingLeft || '0') || 0,
+      rowPadR: parseFloat(rowStyles.paddingRight || '0') || 0,
+      viewportPadL: parseFloat(viewportStyles.paddingLeft || '0') || 0,
+      viewportPadR: parseFloat(viewportStyles.paddingRight || '0') || 0,
+    };
+    return layoutMetrics;
   }
   function applyWidthSync(){
     const cards = Array.from(row.querySelectorAll('.ab-card'));
@@ -473,20 +487,12 @@
 
     if (!measured) return;
 
-    const rowStyles = getComputedStyle(row);
-    const gapValue = parseFloat(rowStyles.gap || rowStyles.columnGap || '0') || 0;
-    const rowPadL = parseFloat(rowStyles.paddingLeft || '0') || 0;
-    const rowPadR = parseFloat(rowStyles.paddingRight || '0') || 0;
-
-    const viewportStyles = getComputedStyle(viewport);
-    const viewportPadL = parseFloat(viewportStyles.paddingLeft || '0') || 0;
-    const viewportPadR = parseFloat(viewportStyles.paddingRight || '0') || 0;
-
-    const visibleGapTotal = gapValue * Math.max(0, measured - 1);
+    const metrics = readLayoutMetrics();
+    const visibleGapTotal = metrics.gap * Math.max(0, measured - 1);
     const baseWidth = totalWidth
       + visibleGapTotal
-      + rowPadL + rowPadR
-      + viewportPadL + viewportPadR;
+      + metrics.rowPadL + metrics.rowPadR
+      + metrics.viewportPadL + metrics.viewportPadR;
 
     const contentWidth = baseWidth + WIDTH_EXTRA_PX;
 
@@ -495,7 +501,11 @@
     lastWidthApplied = maxWidthPx;
     dock.style.setProperty('--ab-target-width', `${maxWidthPx}px`);
   }
-  window.addEventListener('resize', scheduleWidthSync, { passive: true });
+  const handleResize = ()=>{
+    layoutMetrics = null;
+    scheduleWidthSync();
+  };
+  window.addEventListener('resize', handleResize, { passive: true });
   viewport.addEventListener('wheel', handleViewportWheel, { passive: false });
 
   let wheelAnimId = 0;
@@ -909,12 +919,21 @@
     const s = state.get(mkey);
     s.value = value;
 
+    const items = MODELS.map(m => ({ key: m.key, value: state.get(m.key).value }));
+    items.sort((a,b)=>(b.value??-Infinity)-(a.value??-Infinity));
+    const newOrder = items.map(i=>i.key);
+    const orderChanged = newOrder.length !== lastOrder.length
+      || newOrder.some((key, idx)=>key !== lastOrder[idx]);
+
     // 先记录旧位置信息（用于 FLIP 动画）
-    const firstRects = new Map();
-    MODELS.forEach(m=>{
-      const el = cardsByKey.get(m.key);
-      firstRects.set(m.key, el.getBoundingClientRect());
-    });
+    let firstRects = null;
+    if (orderChanged) {
+      firstRects = new Map();
+      MODELS.forEach(m=>{
+        const elCard = cardsByKey.get(m.key);
+        if (elCard) firstRects.set(m.key, elCard.getBoundingClientRect());
+      });
+    }
 
     // 更新本卡展示
     const el = cardsByKey.get(mkey);
@@ -942,35 +961,25 @@
       lastValueMap.set(mkey, value);
     }
 
-    // 重排：按最新值排序（不显示名次，仅内部排序）
-    const items = MODELS.map(m => ({ key: m.key, value: state.get(m.key).value }));
-    items.sort((a,b)=>(b.value??-Infinity)-(a.value??-Infinity));
-    const newOrder = items.map(i=>i.key);
-
-    const els = items.map(i=>cardsByKey.get(i.key));
-    const lastRects = new Map();
-    els.forEach(el=>{
-      const key = el.getAttribute('data-key');
-      lastRects.set(key, firstRects.get(key));
-    });
-    els.forEach((el)=> row.appendChild(el));
-
-    els.forEach(el=>{
-      const key = el.getAttribute('data-key');
-      const first = lastRects.get(key);
-      const last  = el.getBoundingClientRect();
-      if (first) {
+    if (orderChanged && firstRects) {
+      const els = newOrder.map(key=>cardsByKey.get(key)).filter(Boolean);
+      els.forEach((card)=> row.appendChild(card));
+      els.forEach(card=>{
+        const key = card.getAttribute('data-key');
+        const first = firstRects.get(key);
+        if (!first) return;
+        const last  = card.getBoundingClientRect();
         const dx = first.left - last.left;
         const dy = first.top  - last.top;
         if (dx || dy) {
-          el.style.transform = `translate(${dx}px, ${dy}px)`;
-          el.getBoundingClientRect();
-          el.style.transition = 'transform 240ms ease';
-          el.style.transform = '';
-          el.addEventListener('transitionend', ()=>{ el.style.transition=''; }, { once:true });
+          card.style.transform = `translate(${dx}px, ${dy}px)`;
+          card.getBoundingClientRect();
+          card.style.transition = 'transform 240ms ease';
+          card.style.transform = '';
+          card.addEventListener('transitionend', ()=>{ card.style.transition=''; }, { once:true });
         }
-      }
-    });
+      });
+    }
 
     lastOrder = newOrder;
     refreshCardTimes();
