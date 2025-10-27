@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Alpha Board（链上盈利数据展示/底部横排暂时/可隐藏/柔和玻璃）
 // @namespace    https://greasyfork.org/zh-CN/users/1211909-amazing-fish
-// @version      1.2.4.1
+// @version      1.2.5
 // @description  链上实时账户看板 · 默认最小化 · 按模型独立退避 · 轻量玻璃态 UI · 低饱和 P&L · 横排 6 卡片并展示相对更新时间
 // @match        *://*/*
 // @grant        GM_xmlhttpRequest
@@ -25,7 +25,7 @@
   globalScope[INSTALL_FLAG] = true;
 
   /**
-   * Alpha Board 1.2.4.1
+   * Alpha Board 1.2.5
    * ------------------
    *  - 针对多模型地址的链上账户价值聚合看板
    *  - 以 Hyperliquid API 为数据源，独立退避拉取、无本地持久化
@@ -289,30 +289,122 @@
       position: absolute;
       inset: 0;
       display: flex;
-      flex-direction: column;
       align-items: center;
       justify-content: center;
       z-index: 2;
-      padding: 16px 16px;
+      padding: 8px;
       border-radius: 14px;
       background:
-        linear-gradient(155deg, rgba(255,255,255,0.1), rgba(255,255,255,0.025)),
-        rgba(18,21,28,0.26);
-      border: 1px solid rgba(255,255,255,0.12);
-      box-shadow: 0 10px 24px rgba(0,0,0,0.22);
-      color: var(--text);
-      font-size: 13px;
-      font-weight: 600;
-      letter-spacing: .3px;
-      text-align: center;
-      backdrop-filter: saturate(0.85) blur(3px);
+        linear-gradient(155deg, rgba(255,255,255,0.08), rgba(255,255,255,0.015)),
+        rgba(18,21,28,0.22);
+      border: 1px solid rgba(255,255,255,0.1);
+      box-shadow: 0 10px 24px rgba(0,0,0,0.2);
+      color: color-mix(in srgb, var(--text) 88%, transparent);
+      backdrop-filter: saturate(0.75) blur(2.6px);
       opacity: 0;
       pointer-events: none;
       transform: scale(0.98);
       visibility: hidden;
       transition: opacity .22s ease, transform .22s ease;
     }
-    #ab-overlay span { opacity: 0.9; text-shadow: 0 0 10px rgba(0,0,0,0.26); }
+    #ab-overlay-inner {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #ab-feature-grid {
+      --feature-scale: 1;
+      display: flex;
+      align-items: stretch;
+      justify-content: center;
+      gap: 12px;
+      padding: 2px;
+      max-width: min(96vw, calc(var(--ab-target-width) - 20px));
+      transform: scale(var(--feature-scale));
+      transform-origin: center;
+      transition: transform .18s ease;
+    }
+    .ab-feature-card {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      border-radius: 16px;
+      background: linear-gradient(150deg, rgba(255,255,255,0.05), rgba(255,255,255,0.012));
+      border: 1px solid rgba(255,255,255,0.07);
+      color: color-mix(in srgb, var(--text) 86%, transparent);
+      backdrop-filter: saturate(0.65) blur(2.5px);
+      padding: 16px 18px;
+      box-shadow: none;
+      text-align: left;
+    }
+    .ab-feature-card:hover {
+      border-color: rgba(255,255,255,0.12);
+      background: linear-gradient(150deg, rgba(255,255,255,0.07), rgba(255,255,255,0.02));
+    }
+    .ab-feature-card--mini {
+      flex: 0 0 auto;
+      width: 120px;
+      aspect-ratio: 1 / 1;
+      padding: 14px;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+    }
+    .ab-feature-chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 7px;
+      border-radius: 999px;
+      font-size: 9.5px;
+      letter-spacing: .32px;
+      background: rgba(255,255,255,0.12);
+      color: color-mix(in srgb, var(--text) 82%, transparent);
+    }
+    .ab-feature-mini-title {
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: .4px;
+      color: color-mix(in srgb, var(--text) 88%, transparent);
+    }
+    .ab-feature-mini-sub {
+      font-size: 11px;
+      color: color-mix(in srgb, var(--text) 72%, transparent);
+      letter-spacing: .3px;
+    }
+    .ab-feature-card--main {
+      flex: 1 1 auto;
+      min-width: 0;
+      width: min(420px, calc(var(--ab-target-width) - 180px));
+      max-width: min(420px, calc(var(--ab-target-width) - 140px));
+      padding: 18px 22px;
+      gap: 12px;
+    }
+    .ab-feature-card--main h3 {
+      margin: 0;
+      font-size: 12.5px;
+      font-weight: 600;
+      letter-spacing: .32px;
+      color: color-mix(in srgb, var(--text) 90%, transparent);
+    }
+    .ab-feature-card--main p {
+      margin: 0;
+      font-size: 11.2px;
+      line-height: 1.45;
+      color: color-mix(in srgb, var(--text) 78%, transparent);
+    }
+    .ab-feature-card--main ul {
+      margin: 0;
+      padding: 0 0 0 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 10.6px;
+      line-height: 1.4;
+      color: color-mix(in srgb, var(--text) 72%, transparent);
+    }
+    .ab-feature-card--main li { list-style: disc; }
     #ab-dock.ab-feature-open #ab-row-viewport {
       overflow: hidden;
       padding-bottom: 0;
@@ -404,7 +496,24 @@
       <div id="ab-row-viewport">
         <div id="ab-row"></div>
         <div id="ab-overlay" role="region" aria-label="Alpha Board 扩展内容" aria-hidden="true">
-          <span>新功能扩展中</span>
+          <div id="ab-overlay-inner">
+            <div id="ab-feature-grid">
+              <div class="ab-feature-card ab-feature-card--mini" aria-hidden="true">
+                <span class="ab-feature-chip">1.2.5</span>
+                <span class="ab-feature-mini-title">扩展页</span>
+                <span class="ab-feature-mini-sub">方寸预览</span>
+              </div>
+              <div class="ab-feature-card ab-feature-card--main">
+                <h3>Alpha Board 扩展页预览</h3>
+                <p>扩展页展示即将上线的模型管理与底部工具，保持原有高度并自适应缩放。</p>
+                <ul>
+                  <li>左侧新增方形预览卡片，突出重点实验。</li>
+                  <li>右侧主卡片收窄信息密度，延续占位结构。</li>
+                  <li>内容超出高度限制时自动整体缩放，保持视觉稳定。</li>
+                </ul>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
       <div id="ab-toast" role="status" aria-live="polite"></div>
@@ -419,9 +528,31 @@
   const title      = dock.querySelector('#ab-title');
   const expandBtn  = dock.querySelector('#ab-expand-btn');
   const overlay    = dock.querySelector('#ab-overlay');
+  const overlayInner = overlay ? overlay.querySelector('#ab-overlay-inner') : null;
+  const featureGrid  = overlay ? overlay.querySelector('#ab-feature-grid') : null;
   const dot        = dock.querySelector('#ab-dot');
   const timeEl     = dock.querySelector('#ab-time');
   const toast      = dock.querySelector('#ab-toast');
+
+  let featureScaleRaf = 0;
+  function scheduleFeatureScale(){
+    if (!overlayInner || !featureGrid) return;
+    if (featureScaleRaf) cancelAnimationFrame(featureScaleRaf);
+    featureScaleRaf = requestAnimationFrame(()=>{
+      featureScaleRaf = 0;
+      applyFeatureScale();
+    });
+  }
+  function applyFeatureScale(){
+    if (!overlayInner || !featureGrid) return;
+    featureGrid.style.setProperty('--feature-scale', '1');
+    const available = overlayInner.clientHeight;
+    const contentHeight = featureGrid.scrollHeight;
+    if (!available || !contentHeight) return;
+    if (contentHeight <= available) return;
+    const scale = Math.max(0.72, Math.min(1, available / contentHeight));
+    featureGrid.style.setProperty('--feature-scale', scale.toFixed(3));
+  }
 
   // 展开/收起（默认最小化）
   toggle.setAttribute('role', 'button');
@@ -476,6 +607,7 @@
       expandBtn.classList.toggle('expanded', FEATURE_EXPANDED);
     }
     if (overlay) overlay.setAttribute('aria-hidden', FEATURE_EXPANDED ? 'false' : 'true');
+    if (FEATURE_EXPANDED) scheduleFeatureScale();
   }
   function toggleFeature(){ setFeatureState(!FEATURE_EXPANDED); }
   function attachPressHandlers(el, handler){
@@ -491,6 +623,7 @@
   attachPressHandlers(toggle, expand);
   attachPressHandlers(title, minimize);
   if (expandBtn) attachPressHandlers(expandBtn, toggleFeature);
+  window.addEventListener('resize', ()=>{ if (FEATURE_EXPANDED) scheduleFeatureScale(); }, { passive: true });
   setFeatureState(false);
   minimize();
 
