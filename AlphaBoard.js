@@ -335,8 +335,6 @@
       pointer-events: auto;
       transform: scale(1);
       visibility: visible;
-      position: relative;
-      inset: auto;
       width: 100%;
     }
     #ab-dock.ab-feature-open #ab-row {
