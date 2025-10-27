@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Alpha Board（链上盈利数据展示/底部横排暂时/可隐藏/柔和玻璃）
 // @namespace    https://greasyfork.org/zh-CN/users/1211909-amazing-fish
-// @version      1.2.0
+// @version      1.2.1
 // @description  链上实时账户看板 · 默认最小化 · 按模型独立退避 · 轻量玻璃态 UI · 低饱和 P&L · 横排 6 卡片并展示相对更新时间
 // @match        *://*/*
 // @grant        GM_xmlhttpRequest
@@ -25,7 +25,7 @@
   globalScope[INSTALL_FLAG] = true;
 
   /**
-   * Alpha Board 1.2.0
+   * Alpha Board 1.2.1
    * ------------------
    *  - 针对多模型地址的链上账户价值聚合看板
    *  - 以 Hyperliquid API 为数据源，独立退避拉取、无本地持久化
@@ -140,8 +140,35 @@
     #ab-dock.ab-collapsed #ab-toggle { display: inline-flex; }
     #ab-dock.ab-collapsed #ab-wrap { display: none; }
 
-    #ab-topbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:4px; padding:0; }
+    #ab-topbar { display:grid; grid-template-columns:auto 1fr auto; align-items:center; margin-bottom:4px; padding:0; column-gap:12px; }
     #ab-left { display:flex; align-items:center; gap:8px; }
+    #ab-center { display:flex; align-items:center; justify-content:center; }
+    #ab-expander {
+      pointer-events: auto;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 26px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(18,21,28,0.26);
+      padding: 0;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: .3px;
+      box-shadow: 0 10px 26px rgba(0,0,0,0.24);
+      cursor: pointer;
+      backdrop-filter: saturate(0.75) blur(3px);
+      transition: background .2s ease, border-color .2s ease, transform .15s ease, box-shadow .2s ease;
+      appearance: none;
+      outline: none;
+      line-height: 1;
+      color: var(--text);
+    }
+    #ab-expander:hover { background: rgba(22,25,34,0.34); border-color: rgba(255,255,255,0.2); box-shadow: 0 12px 28px rgba(0,0,0,0.28); transform: translateY(-1px); }
+    #ab-expander:active { transform: translateY(0); box-shadow: 0 8px 20px rgba(0,0,0,0.24); }
+    #ab-expander:focus-visible { outline: 2px solid color-mix(in srgb, var(--blue) 55%, transparent); outline-offset: 2px; }
     #ab-title { color:#f7faff; font-size:11px; font-weight:700; letter-spacing:.35px; cursor: pointer; text-transform: uppercase; text-shadow: 0 0 8px rgba(0,0,0,0.35); }
     #ab-status { display:flex; align-items:center; gap:5px; font-size:10.5px; color:#f0f4ff; letter-spacing:.25px; text-shadow: 0 0 8px rgba(0,0,0,0.32); font-weight:500; line-height:1; white-space:nowrap; }
     .ab-dot { width:8px; height:8px; border-radius:50%; background:#9ca3af; }
@@ -176,14 +203,14 @@
       overflow-x: auto;
       overflow-y: visible;
       scrollbar-width: thin;
-      scrollbar-color: rgba(255,255,255,0.10) transparent;
+      scrollbar-color: rgba(255,255,255,0.16) transparent;
       width: 100%;
       max-width: min(96vw, var(--ab-target-width));
       padding: 0 10px 8px 10px;
       margin: 0;
     }
     #ab-row-viewport::-webkit-scrollbar { height: 4px; }
-    #ab-row-viewport::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 999px; }
+    #ab-row-viewport::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.16); border-radius: 999px; }
 
     #ab-row {
       display:flex;
@@ -260,6 +287,30 @@
       transition: opacity .2s ease, transform .2s ease;
     }
     #ab-toast.show { opacity:1; transform: translateY(0); }
+
+    #ab-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 2147483646;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(160deg, rgba(15,17,24,0.84), rgba(12,14,18,0.76));
+      color: #f7faff;
+      font-size: 22px;
+      letter-spacing: .4px;
+      text-shadow: 0 0 18px rgba(0,0,0,0.42);
+      backdrop-filter: blur(14px) saturate(1.05);
+    }
+    #ab-overlay.show { display: flex; }
+    #ab-overlay .ab-overlay-card {
+      padding: 36px 56px;
+      border-radius: 20px;
+      background: rgba(24,26,34,0.45);
+      border: 1px solid rgba(255,255,255,0.18);
+      box-shadow: 0 24px 60px rgba(0,0,0,0.32);
+      backdrop-filter: blur(18px) saturate(1.1);
+    }
   `);
 
   /** ===== DOM ===== */
@@ -276,6 +327,15 @@
             <span class="ab-dot" id="ab-dot"></span>
             <span id="ab-time">Syncing…</span>
           </div>
+        </div>
+        <div id="ab-center">
+          <button
+            id="ab-expander"
+            type="button"
+            aria-expanded="false"
+            aria-controls="ab-overlay"
+            title="新功能扩展入口"
+          >▾</button>
         </div>
         <a
           id="ab-link"
@@ -304,9 +364,18 @@
   const row      = dock.querySelector('#ab-row');
   const toggle   = dock.querySelector('#ab-toggle');
   const title    = dock.querySelector('#ab-title');
+  const expander = dock.querySelector('#ab-expander');
   const dot      = dock.querySelector('#ab-dot');
   const timeEl   = dock.querySelector('#ab-time');
   const toast    = dock.querySelector('#ab-toast');
+
+  const overlay = document.createElement('div');
+  overlay.id = 'ab-overlay';
+  overlay.setAttribute('role', 'dialog');
+  overlay.setAttribute('aria-modal', 'true');
+  overlay.setAttribute('aria-hidden', 'true');
+  overlay.innerHTML = '<div class="ab-overlay-card">新功能扩展中</div>';
+  (document.body || document.documentElement).appendChild(overlay);
 
   // 展开/收起（默认最小化）
   toggle.setAttribute('role', 'button');
@@ -345,6 +414,35 @@
   }
   attachPressHandlers(toggle, expand);
   attachPressHandlers(title, minimize);
+  let overlayVisible = false;
+  function showOverlay(){
+    overlay.classList.add('show');
+    overlay.setAttribute('aria-hidden', 'false');
+    overlayVisible = true;
+    if (expander) {
+      expander.textContent = '▴';
+      expander.setAttribute('aria-expanded', 'true');
+    }
+  }
+  function hideOverlay(){
+    overlay.classList.remove('show');
+    overlay.setAttribute('aria-hidden', 'true');
+    overlayVisible = false;
+    if (expander) {
+      expander.textContent = '▾';
+      expander.setAttribute('aria-expanded', 'false');
+    }
+  }
+  if (expander) {
+    expander.addEventListener('click', ()=>{
+      if (overlayVisible) {
+        hideOverlay();
+      } else {
+        showOverlay();
+      }
+    });
+  }
+  overlay.addEventListener('click', hideOverlay);
   minimize();
 
   let widthSyncPending = false;
