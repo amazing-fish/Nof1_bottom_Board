@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Alpha Board（链上盈利数据展示/底部横排暂时/可隐藏/柔和玻璃）
 // @namespace    https://greasyfork.org/zh-CN/users/1211909-amazing-fish
-// @version      1.2.3
+// @version      1.2.4
 // @description  链上实时账户看板 · 默认最小化 · 按模型独立退避 · 轻量玻璃态 UI · 低饱和 P&L · 横排 6 卡片并展示相对更新时间
 // @match        *://*/*
 // @grant        GM_xmlhttpRequest
@@ -25,7 +25,7 @@
   globalScope[INSTALL_FLAG] = true;
 
   /**
-   * Alpha Board 1.2.3
+   * Alpha Board 1.2.4
    * ------------------
    *  - 针对多模型地址的链上账户价值聚合看板
    *  - 以 Hyperliquid API 为数据源，独立退避拉取、无本地持久化
@@ -315,8 +315,34 @@
       transition: opacity .22s ease, transform .22s ease;
     }
     #ab-overlay span { opacity: 0.9; text-shadow: 0 0 10px rgba(0,0,0,0.26); }
-    #ab-dock.ab-feature-open #ab-overlay { opacity: 1; pointer-events: auto; transform: scale(1); visibility: visible; }
-    #ab-dock.ab-feature-open #ab-row { opacity: 0; pointer-events: none; }
+    #ab-dock.ab-feature-open {
+      --ab-feature-width: min(92vw, 420px);
+    }
+    #ab-dock.ab-feature-open #ab-wrap {
+      width: var(--ab-feature-width);
+      max-width: var(--ab-feature-width);
+    }
+    #ab-dock.ab-feature-open #ab-row-viewport {
+      overflow-x: hidden;
+      scrollbar-width: none;
+      width: var(--ab-feature-width);
+      max-width: var(--ab-feature-width);
+      margin: 0 auto;
+    }
+    #ab-dock.ab-feature-open #ab-row-viewport::-webkit-scrollbar { display: none; }
+    #ab-dock.ab-feature-open #ab-overlay {
+      opacity: 1;
+      pointer-events: auto;
+      transform: scale(1);
+      visibility: visible;
+      position: relative;
+      inset: auto;
+      width: 100%;
+    }
+    #ab-dock.ab-feature-open #ab-row {
+      opacity: 0;
+      pointer-events: none;
+    }
 
     /* 骨架占位 */
     .skeleton {
@@ -437,6 +463,9 @@
   function setFeatureState(next){
     FEATURE_EXPANDED = !!next;
     dock.classList.toggle('ab-feature-open', FEATURE_EXPANDED);
+    if (FEATURE_EXPANDED && viewport) {
+      viewport.scrollLeft = 0;
+    }
     if (expandBtn) {
       const label = FEATURE_EXPANDED ? '收起扩展内容' : '展开扩展内容';
       expandBtn.setAttribute('aria-label', label);
