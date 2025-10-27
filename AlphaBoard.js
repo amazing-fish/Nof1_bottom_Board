@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Alpha Board（链上盈利数据展示/底部横排暂时/可隐藏/柔和玻璃）
 // @namespace    https://greasyfork.org/zh-CN/users/1211909-amazing-fish
-// @version      1.2.0
+// @version      1.2.2
 // @description  链上实时账户看板 · 默认最小化 · 按模型独立退避 · 轻量玻璃态 UI · 低饱和 P&L · 横排 6 卡片并展示相对更新时间
 // @match        *://*/*
 // @grant        GM_xmlhttpRequest
@@ -25,7 +25,7 @@
   globalScope[INSTALL_FLAG] = true;
 
   /**
-   * Alpha Board 1.2.0
+   * Alpha Board 1.2.2
    * ------------------
    *  - 针对多模型地址的链上账户价值聚合看板
    *  - 以 Hyperliquid API 为数据源，独立退避拉取、无本地持久化
@@ -140,8 +140,10 @@
     #ab-dock.ab-collapsed #ab-toggle { display: inline-flex; }
     #ab-dock.ab-collapsed #ab-wrap { display: none; }
 
-    #ab-topbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:4px; padding:0; }
-    #ab-left { display:flex; align-items:center; gap:8px; }
+    #ab-topbar { display:grid; grid-template-columns:1fr auto 1fr; align-items:center; margin-bottom:4px; padding:0; width:100%; gap:8px; }
+    #ab-left { display:flex; align-items:center; gap:8px; min-width:0; }
+    #ab-center { display:flex; align-items:center; justify-content:center; }
+    #ab-right { display:flex; align-items:center; justify-content:flex-end; gap:8px; }
     #ab-title { color:#f7faff; font-size:11px; font-weight:700; letter-spacing:.35px; cursor: pointer; text-transform: uppercase; text-shadow: 0 0 8px rgba(0,0,0,0.35); }
     #ab-status { display:flex; align-items:center; gap:5px; font-size:10.5px; color:#f0f4ff; letter-spacing:.25px; text-shadow: 0 0 8px rgba(0,0,0,0.32); font-weight:500; line-height:1; white-space:nowrap; }
     .ab-dot { width:8px; height:8px; border-radius:50%; background:#9ca3af; }
@@ -170,26 +172,58 @@
     }
     #ab-link svg { width: 14px; height: 14px; fill: currentColor; }
 
+    #ab-expand-btn {
+      pointer-events: auto;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px;
+      height: 26px;
+      border-radius: 8px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid transparent;
+      color: #f5f7ff;
+      font-size: 13px;
+      font-weight: 600;
+      line-height: 1;
+      cursor: pointer;
+      backdrop-filter: saturate(0.75) blur(3px);
+      box-shadow: 0 4px 14px rgba(0,0,0,0.16);
+      transition: background .2s ease, border-color .2s ease, transform .15s ease, box-shadow .2s ease;
+    }
+    #ab-expand-btn:hover {
+      background: rgba(255,255,255,0.10);
+      border-color: rgba(255,255,255,0.12);
+      box-shadow: 0 6px 18px rgba(0,0,0,0.20);
+      transform: translateY(-1px);
+    }
+    #ab-expand-btn:active { transform: scale(0.95); }
+    #ab-expand-btn:focus-visible {
+      outline: 2px solid rgba(96,165,250,0.45);
+      outline-offset: 2px;
+    }
+
     /* 横向一行 + 滚动 */
     #ab-row-viewport {
       position: relative;
       overflow-x: auto;
-      overflow-y: visible;
+      overflow-y: hidden;
       scrollbar-width: thin;
-      scrollbar-color: rgba(255,255,255,0.10) transparent;
+      scrollbar-color: rgba(255,255,255,0.16) transparent;
       width: 100%;
       max-width: min(96vw, var(--ab-target-width));
       padding: 0 10px 8px 10px;
       margin: 0;
     }
     #ab-row-viewport::-webkit-scrollbar { height: 4px; }
-    #ab-row-viewport::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 999px; }
+    #ab-row-viewport::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.16); border-radius: 999px; }
 
     #ab-row {
       display:flex;
       flex-wrap: nowrap;
       gap: var(--gap);
       padding-right: 4px;
+      transition: opacity .2s ease;
     }
 
     .ab-card {
@@ -240,6 +274,37 @@
       .flash-down { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--red)   18%, transparent); }
     }
 
+    #ab-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 2;
+      padding: 16px 16px;
+      border-radius: 14px;
+      background:
+        linear-gradient(155deg, rgba(255,255,255,0.1), rgba(255,255,255,0.025)),
+        rgba(18,21,28,0.26);
+      border: 1px solid rgba(255,255,255,0.12);
+      box-shadow: 0 10px 24px rgba(0,0,0,0.22);
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: .3px;
+      text-align: center;
+      backdrop-filter: saturate(0.85) blur(3px);
+      opacity: 0;
+      pointer-events: none;
+      transform: scale(0.98);
+      visibility: hidden;
+      transition: opacity .22s ease, transform .22s ease;
+    }
+    #ab-overlay span { opacity: 0.9; text-shadow: 0 0 10px rgba(0,0,0,0.26); }
+    #ab-dock.ab-feature-open #ab-overlay { opacity: 1; pointer-events: auto; transform: scale(1); visibility: visible; }
+    #ab-dock.ab-feature-open #ab-row { opacity: 0; pointer-events: none; }
+
     /* 骨架占位 */
     .skeleton {
       background: linear-gradient(90deg, rgba(255,255,255,0.05) 25%, rgba(255,255,255,0.12) 45%, rgba(255,255,255,0.05) 65%);
@@ -277,36 +342,52 @@
             <span id="ab-time">Syncing…</span>
           </div>
         </div>
-        <a
-          id="ab-link"
-          href="https://nof1.ai"
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="打开 Nof1.ai（新窗口）"
-          title="打开 Nof1.ai（新窗口）"
-        >
-          <svg viewBox="0 0 20 20" aria-hidden="true">
-            <path d="M5 4a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 112 0v3a4 4 0 01-4 4H5a4 4 0 01-4-4V6a4 4 0 014-4h3a1 1 0 110 2H5z" />
-            <path d="M9 3a1 1 0 011-1h7a1 1 0 011 1v7a1 1 0 11-2 0V5.414l-8.293 8.293a1 1 0 11-1.414-1.414L14.586 4H10a1 1 0 01-1-1z" />
-          </svg>
-        </a>
+        <div id="ab-center">
+          <button
+            id="ab-expand-btn"
+            type="button"
+            aria-label="展开扩展内容"
+            aria-expanded="false"
+            title="展开扩展内容"
+          >▼</button>
+        </div>
+        <div id="ab-right">
+          <a
+            id="ab-link"
+            href="https://nof1.ai"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="打开 Nof1.ai（新窗口）"
+            title="打开 Nof1.ai（新窗口）"
+          >
+            <svg viewBox="0 0 20 20" aria-hidden="true">
+              <path d="M5 4a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 112 0v3a4 4 0 01-4 4H5a4 4 0 01-4-4V6a4 4 0 014-4h3a1 1 0 110 2H5z" />
+              <path d="M9 3a1 1 0 011-1h7a1 1 0 011 1v7a1 1 0 11-2 0V5.414l-8.293 8.293a1 1 0 11-1.414-1.414L14.586 4H10a1 1 0 01-1-1z" />
+            </svg>
+          </a>
+        </div>
       </div>
       <div id="ab-row-viewport">
         <div id="ab-row"></div>
+        <div id="ab-overlay" role="region" aria-label="Alpha Board 扩展内容" aria-hidden="true">
+          <span>新功能扩展中</span>
+        </div>
       </div>
       <div id="ab-toast" role="status" aria-live="polite"></div>
     </div>
   `;
   document.documentElement.appendChild(dock);
 
-  const wrap     = dock.querySelector('#ab-wrap');
-  const viewport = dock.querySelector('#ab-row-viewport');
-  const row      = dock.querySelector('#ab-row');
-  const toggle   = dock.querySelector('#ab-toggle');
-  const title    = dock.querySelector('#ab-title');
-  const dot      = dock.querySelector('#ab-dot');
-  const timeEl   = dock.querySelector('#ab-time');
-  const toast    = dock.querySelector('#ab-toast');
+  const wrap       = dock.querySelector('#ab-wrap');
+  const viewport   = dock.querySelector('#ab-row-viewport');
+  const row        = dock.querySelector('#ab-row');
+  const toggle     = dock.querySelector('#ab-toggle');
+  const title      = dock.querySelector('#ab-title');
+  const expandBtn  = dock.querySelector('#ab-expand-btn');
+  const overlay    = dock.querySelector('#ab-overlay');
+  const dot        = dock.querySelector('#ab-dot');
+  const timeEl     = dock.querySelector('#ab-time');
+  const toast      = dock.querySelector('#ab-toast');
 
   // 展开/收起（默认最小化）
   toggle.setAttribute('role', 'button');
@@ -335,8 +416,24 @@
   }
   function minimize(){ COLLAPSED = true;  applyCollapseState(); }
   function expand()  { COLLAPSED = false; applyCollapseState(); scheduleWidthSync(); }
+  let FEATURE_EXPANDED = false;
+  function setFeatureState(next){
+    FEATURE_EXPANDED = !!next;
+    dock.classList.toggle('ab-feature-open', FEATURE_EXPANDED);
+    if (expandBtn) {
+      const label = FEATURE_EXPANDED ? '收起扩展内容' : '展开扩展内容';
+      expandBtn.textContent = FEATURE_EXPANDED ? '▲' : '▼';
+      expandBtn.setAttribute('aria-label', label);
+      expandBtn.setAttribute('title', label);
+      expandBtn.setAttribute('aria-expanded', FEATURE_EXPANDED ? 'true' : 'false');
+    }
+    if (overlay) overlay.setAttribute('aria-hidden', FEATURE_EXPANDED ? 'false' : 'true');
+  }
+  function toggleFeature(){ setFeatureState(!FEATURE_EXPANDED); }
   function attachPressHandlers(el, handler){
     el.addEventListener('click', handler);
+    const tagName = (el.tagName || '').toLowerCase();
+    if (tagName === 'button') return;
     el.addEventListener('keydown', (ev)=>{
       if (!ACTIVATION_KEYS.has(ev.key)) return;
       ev.preventDefault();
@@ -345,6 +442,8 @@
   }
   attachPressHandlers(toggle, expand);
   attachPressHandlers(title, minimize);
+  if (expandBtn) attachPressHandlers(expandBtn, toggleFeature);
+  setFeatureState(false);
   minimize();
 
   let widthSyncPending = false;
