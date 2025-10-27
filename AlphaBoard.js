@@ -285,15 +285,13 @@
       .flash-down { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--red)   18%, transparent); }
     }
 
-    #ab-overlay {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      z-index: 2;
+    #ab-feature-root {
+      display: none;
+      width: 100%;
+      max-width: min(96vw, var(--ab-target-width));
+      box-sizing: border-box;
       padding: 16px 16px;
+      margin: 0;
       border-radius: 14px;
       background:
         linear-gradient(155deg, rgba(255,255,255,0.1), rgba(255,255,255,0.025)),
@@ -309,25 +307,20 @@
       opacity: 0;
       pointer-events: none;
       transform: scale(0.98);
-      visibility: hidden;
       transition: opacity .22s ease, transform .22s ease;
     }
-    #ab-overlay span { opacity: 0.9; text-shadow: 0 0 10px rgba(0,0,0,0.26); }
+    #ab-feature-root span { opacity: 0.9; text-shadow: 0 0 10px rgba(0,0,0,0.26); }
     #ab-dock.ab-feature-open #ab-row-viewport {
-      overflow: hidden;
-      padding-bottom: 0;
-      scrollbar-width: none;
+      display: none;
     }
-    #ab-dock.ab-feature-open #ab-row-viewport::-webkit-scrollbar { display: none; }
-    #ab-dock.ab-feature-open #ab-overlay {
-      position: relative;
-      inset: auto;
-      width: 100%;
-      height: 100%;
+    #ab-dock.ab-feature-open #ab-feature-root {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
       opacity: 1;
       pointer-events: auto;
       transform: scale(1);
-      visibility: visible;
     }
     #ab-dock.ab-feature-open #ab-row {
       opacity: 0;
@@ -403,9 +396,16 @@
       </div>
       <div id="ab-row-viewport">
         <div id="ab-row"></div>
-        <div id="ab-overlay" role="region" aria-label="Alpha Board 扩展内容" aria-hidden="true">
-          <span>新功能扩展中</span>
-        </div>
+      </div>
+      <div
+        id="ab-feature-root"
+        role="region"
+        aria-label="Alpha Board 扩展内容"
+        aria-hidden="true"
+        data-ab-feature-content
+        hidden
+      >
+        <span>新功能扩展中</span>
       </div>
       <div id="ab-toast" role="status" aria-live="polite"></div>
     </div>
@@ -418,7 +418,7 @@
   const toggle     = dock.querySelector('#ab-toggle');
   const title      = dock.querySelector('#ab-title');
   const expandBtn  = dock.querySelector('#ab-expand-btn');
-  const overlay    = dock.querySelector('#ab-overlay');
+  const featureRoot = dock.querySelector('#ab-feature-root');
   const dot        = dock.querySelector('#ab-dot');
   const timeEl     = dock.querySelector('#ab-time');
   const toast      = dock.querySelector('#ab-toast');
@@ -463,17 +463,20 @@
     prevMaxWidth: '',
   };
 
-  // 优先使用扩展区域内的真实内容容器，避免直接缩放带背景的 overlay 外壳。
+  // 优先使用扩展区域内的真实内容容器，避免直接缩放带背景的外壳。
   function resolveFeatureContentNode(){
-    if (!overlay) return null;
-    const preferred = overlay.querySelector('[data-ab-overlay-content], [data-ab-feature-content], [data-feature-root]');
+    if (!(featureRoot instanceof HTMLElement)) return null;
+    if (featureRoot.matches('[data-ab-overlay-content], [data-ab-feature-content], [data-feature-root]')) {
+      return featureRoot;
+    }
+    const preferred = featureRoot.querySelector('[data-ab-overlay-content], [data-ab-feature-content], [data-feature-root]');
     if (preferred instanceof HTMLElement) return preferred;
-    if (overlay.children && overlay.children.length) {
-      for (const child of overlay.children) {
+    if (featureRoot.children && featureRoot.children.length) {
+      for (const child of featureRoot.children) {
         if (child instanceof HTMLElement) return child;
       }
     }
-    return overlay instanceof HTMLElement ? overlay : null;
+    return featureRoot;
   }
 
   function resetFeatureScale(){
@@ -586,7 +589,11 @@
       expandBtn.setAttribute('aria-expanded', FEATURE_EXPANDED ? 'true' : 'false');
       expandBtn.classList.toggle('expanded', FEATURE_EXPANDED);
     }
-    if (overlay) overlay.setAttribute('aria-hidden', FEATURE_EXPANDED ? 'false' : 'true');
+    if (featureRoot) {
+      featureRoot.setAttribute('aria-hidden', FEATURE_EXPANDED ? 'false' : 'true');
+      if (FEATURE_EXPANDED) featureRoot.removeAttribute('hidden');
+      else featureRoot.setAttribute('hidden', '');
+    }
     if (FEATURE_EXPANDED) {
       scheduleFeatureScale();
     } else {
