@@ -285,41 +285,35 @@
       .flash-down { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--red)   18%, transparent); }
     }
 
-    #ab-overlay {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      align-items: stretch;
-      justify-content: center;
-      z-index: 2;
-      padding: 10px 12px;
-      box-sizing: border-box;
-      border-radius: 14px;
-      background:
-        linear-gradient(155deg, rgba(255,255,255,0.08), rgba(255,255,255,0.015)),
-        rgba(18,21,28,0.22);
-      border: 1px solid rgba(255,255,255,0.1);
-      box-shadow: 0 10px 24px rgba(0,0,0,0.2);
-      color: color-mix(in srgb, var(--text) 88%, transparent);
-      backdrop-filter: saturate(0.75) blur(2.6px);
-      opacity: 0;
-      pointer-events: none;
-      transform: scale(0.98);
-      visibility: hidden;
-      transition: opacity .22s ease, transform .22s ease;
-      overflow: hidden;
-    }
     #ab-feature-stage {
       --feature-scale: 1;
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 100%;
       display: grid;
       grid-template-columns: 120px minmax(0, 1fr);
       align-items: stretch;
       gap: 12px;
       width: 100%;
       max-width: 100%;
-      transform: scale(var(--feature-scale));
+      padding: 10px 12px;
+      box-sizing: border-box;
       transform-origin: top left;
-      transition: transform .18s ease;
+      transform: scale(var(--feature-scale)) translateY(8px);
+      opacity: 0;
+      pointer-events: none;
+      visibility: hidden;
+      transition: opacity .22s ease, transform .22s ease;
+      z-index: 2;
+      overflow: hidden;
+    }
+    #ab-dock.ab-feature-open #ab-feature-stage {
+      opacity: 1;
+      pointer-events: auto;
+      visibility: visible;
+      transform: scale(var(--feature-scale));
     }
     .ab-feature-card {
       display: flex;
@@ -405,16 +399,6 @@
       scrollbar-width: none;
     }
     #ab-dock.ab-feature-open #ab-row-viewport::-webkit-scrollbar { display: none; }
-    #ab-dock.ab-feature-open #ab-overlay {
-      position: relative;
-      inset: auto;
-      width: 100%;
-      height: 100%;
-      opacity: 1;
-      pointer-events: auto;
-      transform: scale(1);
-      visibility: visible;
-    }
     #ab-dock.ab-feature-open #ab-row {
       opacity: 0;
       pointer-events: none;
@@ -487,10 +471,9 @@
           </a>
         </div>
       </div>
-      <div id="ab-row-viewport">
-        <div id="ab-row"></div>
-        <div id="ab-overlay" role="region" aria-label="Alpha Board 扩展内容" aria-hidden="true">
-          <div id="ab-feature-stage">
+        <div id="ab-row-viewport">
+          <div id="ab-row"></div>
+          <div id="ab-feature-stage" role="region" aria-label="Alpha Board 扩展内容" aria-hidden="true">
             <div class="ab-feature-card ab-feature-card--mini" aria-hidden="true">
               <span class="ab-feature-chip">1.2.5</span>
               <span class="ab-feature-mini-title">扩展页</span>
@@ -507,7 +490,6 @@
             </div>
           </div>
         </div>
-      </div>
       <div id="ab-toast" role="status" aria-live="polite"></div>
     </div>
   `;
@@ -519,15 +501,14 @@
   const toggle     = dock.querySelector('#ab-toggle');
   const title      = dock.querySelector('#ab-title');
   const expandBtn  = dock.querySelector('#ab-expand-btn');
-  const overlay      = dock.querySelector('#ab-overlay');
-  const featureStage = overlay ? overlay.querySelector('#ab-feature-stage') : null;
+  const featureStage = dock.querySelector('#ab-feature-stage');
   const dot        = dock.querySelector('#ab-dot');
   const timeEl     = dock.querySelector('#ab-time');
   const toast      = dock.querySelector('#ab-toast');
 
   let featureScaleRaf = 0;
   function scheduleFeatureScale(){
-    if (!overlay || !featureStage) return;
+    if (!featureStage) return;
     if (featureScaleRaf) cancelAnimationFrame(featureScaleRaf);
     featureScaleRaf = requestAnimationFrame(()=>{
       featureScaleRaf = 0;
@@ -535,37 +516,25 @@
     });
   }
   function lockFeatureHeight(px){
+    if (!featureStage) return;
     const locked = px > 0 ? px : 0;
-    if (overlay) {
-      if (locked) {
-        overlay.style.height = `${locked}px`;
-        overlay.style.maxHeight = `${locked}px`;
-      } else {
-        overlay.style.removeProperty('height');
-        overlay.style.removeProperty('max-height');
-      }
-    }
-    if (featureStage) {
-      if (locked) {
-        const overlayStyles = getComputedStyle(overlay);
-        const padTop = parseFloat(overlayStyles.paddingTop || '0') || 0;
-        const padBottom = parseFloat(overlayStyles.paddingBottom || '0') || 0;
-        const innerMax = Math.max(0, locked - padTop - padBottom);
-        featureStage.style.maxHeight = `${innerMax}px`;
-      } else {
-        featureStage.style.removeProperty('max-height');
-      }
+    if (locked) {
+      featureStage.style.height = `${locked}px`;
+      featureStage.style.maxHeight = `${locked}px`;
+    } else {
+      featureStage.style.removeProperty('height');
+      featureStage.style.removeProperty('max-height');
     }
   }
   function applyFeatureScale(){
-    if (!overlay || !featureStage) return;
+    if (!featureStage) return;
     featureStage.style.setProperty('--feature-scale', '1');
-    const overlayStyles = getComputedStyle(overlay);
-    const padTop = parseFloat(overlayStyles.paddingTop || '0') || 0;
-    const padBottom = parseFloat(overlayStyles.paddingBottom || '0') || 0;
-    const available = overlay.clientHeight - padTop - padBottom;
+    const stageStyles = getComputedStyle(featureStage);
+    const padTop = parseFloat(stageStyles.paddingTop || '0') || 0;
+    const padBottom = parseFloat(stageStyles.paddingBottom || '0') || 0;
+    const available = featureStage.clientHeight - padTop - padBottom;
     if (available <= 0) return;
-    const contentHeight = featureStage.scrollHeight;
+    const contentHeight = Math.max(0, featureStage.scrollHeight - padTop - padBottom);
     if (!available || !contentHeight) return;
     if (contentHeight <= available) return;
     const scale = Math.min(1, available / contentHeight);
@@ -636,7 +605,7 @@
       expandBtn.setAttribute('aria-expanded', FEATURE_EXPANDED ? 'true' : 'false');
       expandBtn.classList.toggle('expanded', FEATURE_EXPANDED);
     }
-    if (overlay) overlay.setAttribute('aria-hidden', FEATURE_EXPANDED ? 'false' : 'true');
+    if (featureStage) featureStage.setAttribute('aria-hidden', FEATURE_EXPANDED ? 'false' : 'true');
     if (FEATURE_EXPANDED) scheduleFeatureScale();
   }
   function toggleFeature(){ setFeatureState(!FEATURE_EXPANDED); }
