@@ -289,10 +289,11 @@
       position: absolute;
       inset: 0;
       display: flex;
-      align-items: center;
+      align-items: stretch;
       justify-content: center;
       z-index: 2;
-      padding: 8px;
+      padding: 10px 12px;
+      box-sizing: border-box;
       border-radius: 14px;
       background:
         linear-gradient(155deg, rgba(255,255,255,0.08), rgba(255,255,255,0.015)),
@@ -308,24 +309,16 @@
       transition: opacity .22s ease, transform .22s ease;
       overflow: hidden;
     }
-    #ab-overlay-inner {
-      width: 100%;
-      height: 100%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      overflow: hidden;
-    }
-    #ab-feature-grid {
+    #ab-feature-stage {
       --feature-scale: 1;
-      display: flex;
+      display: grid;
+      grid-template-columns: 120px minmax(0, 1fr);
       align-items: stretch;
-      justify-content: center;
       gap: 12px;
-      padding: 2px;
-      max-width: min(96vw, calc(var(--ab-target-width) - 20px));
+      width: 100%;
+      max-width: 100%;
       transform: scale(var(--feature-scale));
-      transform-origin: center;
+      transform-origin: top left;
       transition: transform .18s ease;
     }
     .ab-feature-card {
@@ -346,13 +339,14 @@
       background: linear-gradient(150deg, rgba(255,255,255,0.07), rgba(255,255,255,0.02));
     }
     .ab-feature-card--mini {
-      flex: 0 0 auto;
       width: 120px;
       aspect-ratio: 1 / 1;
       padding: 14px;
       justify-content: space-between;
       align-items: flex-start;
       gap: 12px;
+      align-self: start;
+      justify-self: start;
     }
     .ab-feature-chip {
       display: inline-flex;
@@ -378,8 +372,6 @@
     .ab-feature-card--main {
       flex: 1 1 auto;
       min-width: 0;
-      width: min(420px, calc(var(--ab-target-width) - 180px));
-      max-width: min(420px, calc(var(--ab-target-width) - 140px));
       padding: 18px 22px;
       gap: 12px;
     }
@@ -498,22 +490,20 @@
       <div id="ab-row-viewport">
         <div id="ab-row"></div>
         <div id="ab-overlay" role="region" aria-label="Alpha Board 扩展内容" aria-hidden="true">
-          <div id="ab-overlay-inner">
-            <div id="ab-feature-grid">
-              <div class="ab-feature-card ab-feature-card--mini" aria-hidden="true">
-                <span class="ab-feature-chip">1.2.5</span>
-                <span class="ab-feature-mini-title">扩展页</span>
-                <span class="ab-feature-mini-sub">方寸预览</span>
-              </div>
-              <div class="ab-feature-card ab-feature-card--main">
-                <h3>Alpha Board 扩展页预览</h3>
-                <p>扩展页展示即将上线的模型管理与底部工具，保持原有高度并自适应缩放。</p>
-                <ul>
-                  <li>左侧新增方形预览卡片，突出重点实验。</li>
-                  <li>右侧主卡片收窄信息密度，延续占位结构。</li>
-                  <li>内容超出高度限制时自动整体缩放，保持视觉稳定。</li>
-                </ul>
-              </div>
+          <div id="ab-feature-stage">
+            <div class="ab-feature-card ab-feature-card--mini" aria-hidden="true">
+              <span class="ab-feature-chip">1.2.5</span>
+              <span class="ab-feature-mini-title">扩展页</span>
+              <span class="ab-feature-mini-sub">方寸预览</span>
+            </div>
+            <div class="ab-feature-card ab-feature-card--main">
+              <h3>Alpha Board 扩展页预览</h3>
+              <p>扩展页展示即将上线的模型管理与底部工具，保持原有高度并自适应缩放。</p>
+              <ul>
+                <li>左侧新增方形预览卡片，突出重点实验。</li>
+                <li>右侧主卡片收窄信息密度，延续占位结构。</li>
+                <li>内容超出高度限制时自动整体缩放，保持视觉稳定。</li>
+              </ul>
             </div>
           </div>
         </div>
@@ -529,16 +519,15 @@
   const toggle     = dock.querySelector('#ab-toggle');
   const title      = dock.querySelector('#ab-title');
   const expandBtn  = dock.querySelector('#ab-expand-btn');
-  const overlay    = dock.querySelector('#ab-overlay');
-  const overlayInner = overlay ? overlay.querySelector('#ab-overlay-inner') : null;
-  const featureGrid  = overlay ? overlay.querySelector('#ab-feature-grid') : null;
+  const overlay      = dock.querySelector('#ab-overlay');
+  const featureStage = overlay ? overlay.querySelector('#ab-feature-stage') : null;
   const dot        = dock.querySelector('#ab-dot');
   const timeEl     = dock.querySelector('#ab-time');
   const toast      = dock.querySelector('#ab-toast');
 
   let featureScaleRaf = 0;
   function scheduleFeatureScale(){
-    if (!overlayInner || !featureGrid) return;
+    if (!overlay || !featureStage) return;
     if (featureScaleRaf) cancelAnimationFrame(featureScaleRaf);
     featureScaleRaf = requestAnimationFrame(()=>{
       featureScaleRaf = 0;
@@ -556,23 +545,31 @@
         overlay.style.removeProperty('max-height');
       }
     }
-    if (overlayInner) {
+    if (featureStage) {
       if (locked) {
-        overlayInner.style.maxHeight = `${locked}px`;
+        const overlayStyles = getComputedStyle(overlay);
+        const padTop = parseFloat(overlayStyles.paddingTop || '0') || 0;
+        const padBottom = parseFloat(overlayStyles.paddingBottom || '0') || 0;
+        const innerMax = Math.max(0, locked - padTop - padBottom);
+        featureStage.style.maxHeight = `${innerMax}px`;
       } else {
-        overlayInner.style.removeProperty('max-height');
+        featureStage.style.removeProperty('max-height');
       }
     }
   }
   function applyFeatureScale(){
-    if (!overlayInner || !featureGrid) return;
-    featureGrid.style.setProperty('--feature-scale', '1');
-    const available = overlayInner.clientHeight;
-    const contentHeight = featureGrid.scrollHeight;
+    if (!overlay || !featureStage) return;
+    featureStage.style.setProperty('--feature-scale', '1');
+    const overlayStyles = getComputedStyle(overlay);
+    const padTop = parseFloat(overlayStyles.paddingTop || '0') || 0;
+    const padBottom = parseFloat(overlayStyles.paddingBottom || '0') || 0;
+    const available = overlay.clientHeight - padTop - padBottom;
+    if (available <= 0) return;
+    const contentHeight = featureStage.scrollHeight;
     if (!available || !contentHeight) return;
     if (contentHeight <= available) return;
     const scale = Math.min(1, available / contentHeight);
-    featureGrid.style.setProperty('--feature-scale', scale.toFixed(3));
+    featureStage.style.setProperty('--feature-scale', scale.toFixed(3));
   }
 
   // 展开/收起（默认最小化）
@@ -627,8 +624,8 @@
         lockFeatureHeight(0);
       }
     }
-    if (!nextExpanded && featureGrid) {
-      featureGrid.style.setProperty('--feature-scale', '1');
+    if (!nextExpanded && featureStage) {
+      featureStage.style.setProperty('--feature-scale', '1');
     }
     FEATURE_EXPANDED = nextExpanded;
     dock.classList.toggle('ab-feature-open', FEATURE_EXPANDED);
