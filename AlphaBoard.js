@@ -94,6 +94,10 @@
       --brd: rgba(255,255,255,0.10);
       --soft: rgba(255,255,255,0.08);
       --shadow: 0 12px 30px rgba(0,0,0,0.2);
+      --panel-btn-bg: rgba(255,255,255,0.05);
+      --panel-btn-border: rgba(255,255,255,0.08);
+      --panel-btn-hover-bg: rgba(255,255,255,0.10);
+      --panel-btn-hover-border: rgba(255,255,255,0.14);
 
       /* ↓↓↓ 低饱和柔和绿/红（P&L + 状态点 + 闪烁） ↓↓↓ */
       --green: rgb(204,255,216);
@@ -161,13 +165,16 @@
       border-radius: 8px;
       color: #f5f7ff;
       text-decoration: none;
-      background: rgba(255,255,255,0.05);
-      border: 1px solid transparent;
+      background: var(--panel-btn-bg);
+      border: 1px solid var(--panel-btn-border);
+      backdrop-filter: saturate(0.75) blur(3px);
+      box-shadow: 0 4px 14px rgba(0,0,0,0.16);
       transition: background .2s ease, border-color .2s ease, transform .15s ease;
     }
     #ab-link:hover {
-      background: rgba(255,255,255,0.10);
-      border-color: rgba(255,255,255,0.12);
+      background: var(--panel-btn-hover-bg);
+      border-color: var(--panel-btn-hover-border);
+      box-shadow: 0 6px 18px rgba(0,0,0,0.20);
       transform: translateY(-1px);
     }
     #ab-link svg { width: 14px; height: 14px; fill: currentColor; }
@@ -180,11 +187,9 @@
       width: 26px;
       height: 26px;
       border-radius: 8px;
-      background: rgba(255,255,255,0.05);
-      border: 1px solid transparent;
+      background: var(--panel-btn-bg);
+      border: 1px solid var(--panel-btn-border);
       color: #f5f7ff;
-      font-size: 13px;
-      font-weight: 600;
       line-height: 1;
       cursor: pointer;
       backdrop-filter: saturate(0.75) blur(3px);
@@ -192,15 +197,23 @@
       transition: background .2s ease, border-color .2s ease, transform .15s ease, box-shadow .2s ease;
     }
     #ab-expand-btn:hover {
-      background: rgba(255,255,255,0.10);
-      border-color: rgba(255,255,255,0.12);
+      background: var(--panel-btn-hover-bg);
+      border-color: var(--panel-btn-hover-border);
       box-shadow: 0 6px 18px rgba(0,0,0,0.20);
       transform: translateY(-1px);
     }
     #ab-expand-btn:active { transform: scale(0.95); }
     #ab-expand-btn:focus-visible {
-      outline: 2px solid rgba(96,165,250,0.45);
+      outline: 2px solid rgba(96,165,250,0.85);
       outline-offset: 2px;
+    }
+    #ab-expand-btn svg {
+      width: 14px;
+      height: 14px;
+      transition: transform .22s ease;
+    }
+    #ab-expand-btn[aria-expanded="true"] svg {
+      transform: rotate(180deg);
     }
 
     /* 横向一行 + 滚动 */
@@ -349,7 +362,11 @@
             aria-label="展开扩展内容"
             aria-expanded="false"
             title="展开扩展内容"
-          >▼</button>
+          >
+            <svg viewBox="0 0 12 12" aria-hidden="true" focusable="false">
+              <path d="M3.22 4.22a.75.75 0 011.06 0L6 5.94l1.72-1.72a.75.75 0 111.06 1.06L6.53 7.53a.75.75 0 01-1.06 0L3.22 5.28a.75.75 0 010-1.06z" fill="currentColor" />
+            </svg>
+          </button>
         </div>
         <div id="ab-right">
           <a
@@ -422,7 +439,6 @@
     dock.classList.toggle('ab-feature-open', FEATURE_EXPANDED);
     if (expandBtn) {
       const label = FEATURE_EXPANDED ? '收起扩展内容' : '展开扩展内容';
-      expandBtn.textContent = FEATURE_EXPANDED ? '▲' : '▼';
       expandBtn.setAttribute('aria-label', label);
       expandBtn.setAttribute('title', label);
       expandBtn.setAttribute('aria-expanded', FEATURE_EXPANDED ? 'true' : 'false');
