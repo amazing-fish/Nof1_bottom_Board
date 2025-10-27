@@ -432,6 +432,8 @@
   function toggleFeature(){ setFeatureState(!FEATURE_EXPANDED); }
   function attachPressHandlers(el, handler){
     el.addEventListener('click', handler);
+    const tagName = (el.tagName || '').toLowerCase();
+    if (tagName === 'button') return;
     el.addEventListener('keydown', (ev)=>{
       if (!ACTIVATION_KEYS.has(ev.key)) return;
       ev.preventDefault();
