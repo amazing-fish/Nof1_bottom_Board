@@ -306,6 +306,7 @@
       transform: scale(0.98);
       visibility: hidden;
       transition: opacity .22s ease, transform .22s ease;
+      overflow: hidden;
     }
     #ab-overlay-inner {
       width: 100%;
@@ -313,6 +314,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
+      overflow: hidden;
     }
     #ab-feature-grid {
       --feature-scale: 1;
@@ -543,6 +545,25 @@
       applyFeatureScale();
     });
   }
+  function lockFeatureHeight(px){
+    const locked = px > 0 ? px : 0;
+    if (overlay) {
+      if (locked) {
+        overlay.style.height = `${locked}px`;
+        overlay.style.maxHeight = `${locked}px`;
+      } else {
+        overlay.style.removeProperty('height');
+        overlay.style.removeProperty('max-height');
+      }
+    }
+    if (overlayInner) {
+      if (locked) {
+        overlayInner.style.maxHeight = `${locked}px`;
+      } else {
+        overlayInner.style.removeProperty('max-height');
+      }
+    }
+  }
   function applyFeatureScale(){
     if (!overlayInner || !featureGrid) return;
     featureGrid.style.setProperty('--feature-scale', '1');
@@ -550,7 +571,7 @@
     const contentHeight = featureGrid.scrollHeight;
     if (!available || !contentHeight) return;
     if (contentHeight <= available) return;
-    const scale = Math.max(0.72, Math.min(1, available / contentHeight));
+    const scale = Math.min(1, available / contentHeight);
     featureGrid.style.setProperty('--feature-scale', scale.toFixed(3));
   }
 
@@ -590,12 +611,24 @@
         const measured = rect.height || viewport.scrollHeight;
         if (measured) {
           viewport.style.minHeight = `${measured}px`;
+          viewport.style.height = `${measured}px`;
+          viewport.style.maxHeight = `${measured}px`;
+          lockFeatureHeight(measured);
         } else {
           viewport.style.removeProperty('min-height');
+          viewport.style.removeProperty('height');
+          viewport.style.removeProperty('max-height');
+          lockFeatureHeight(0);
         }
       } else {
         viewport.style.removeProperty('min-height');
+        viewport.style.removeProperty('height');
+        viewport.style.removeProperty('max-height');
+        lockFeatureHeight(0);
       }
+    }
+    if (!nextExpanded && featureGrid) {
+      featureGrid.style.setProperty('--feature-scale', '1');
     }
     FEATURE_EXPANDED = nextExpanded;
     dock.classList.toggle('ab-feature-open', FEATURE_EXPANDED);
