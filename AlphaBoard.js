@@ -140,8 +140,28 @@
     #ab-dock.ab-collapsed #ab-toggle { display: inline-flex; }
     #ab-dock.ab-collapsed #ab-wrap { display: none; }
 
-    #ab-topbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:4px; padding:0; }
+    #ab-topbar { display:grid; grid-template-columns: auto 1fr auto; align-items:center; gap:8px; margin-bottom:4px; padding:0; }
     #ab-left { display:flex; align-items:center; gap:8px; }
+    #ab-center { display:flex; justify-content:center; }
+    #ab-center-btn {
+      pointer-events: auto;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px;
+      height: 26px;
+      border-radius: 8px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid transparent;
+      color: #f5f7ff;
+      cursor: pointer;
+      transition: background .2s ease, border-color .2s ease, transform .15s ease;
+      box-shadow: 0 6px 16px rgba(0,0,0,0.18);
+      backdrop-filter: saturate(0.8) blur(2.2px);
+    }
+    #ab-center-btn:hover { background: rgba(255,255,255,0.10); border-color: rgba(255,255,255,0.12); transform: translateY(-1px); }
+    #ab-center-btn:active { transform: scale(0.94); }
+    #ab-center-btn svg { width: 14px; height: 14px; fill: currentColor; }
     #ab-title { color:#f7faff; font-size:11px; font-weight:700; letter-spacing:.35px; cursor: pointer; text-transform: uppercase; text-shadow: 0 0 8px rgba(0,0,0,0.35); }
     #ab-status { display:flex; align-items:center; gap:5px; font-size:10.5px; color:#f0f4ff; letter-spacing:.25px; text-shadow: 0 0 8px rgba(0,0,0,0.32); font-weight:500; line-height:1; white-space:nowrap; }
     .ab-dot { width:8px; height:8px; border-radius:50%; background:#9ca3af; }
@@ -176,14 +196,31 @@
       overflow-x: auto;
       overflow-y: visible;
       scrollbar-width: thin;
-      scrollbar-color: rgba(255,255,255,0.10) transparent;
+      scrollbar-color: rgba(255,255,255,0.16) transparent;
       width: 100%;
       max-width: min(96vw, var(--ab-target-width));
       padding: 0 10px 8px 10px;
       margin: 0;
     }
     #ab-row-viewport::-webkit-scrollbar { height: 4px; }
-    #ab-row-viewport::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 999px; }
+    #ab-row-viewport::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.16); border-radius: 999px; }
+    #ab-overlay {
+      position: absolute;
+      inset: 0;
+      display: none;
+      border-radius: 12px;
+      background:
+        linear-gradient(160deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01)) ,
+        rgba(14,16,22,0.42);
+      border: 1px solid rgba(255,255,255,0.10);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02);
+      pointer-events: auto;
+      align-items: center;
+      justify-content: center;
+    }
+    #ab-overlay.ab-show {
+      display: flex;
+    }
 
     #ab-row {
       display:flex;
@@ -277,6 +314,19 @@
             <span id="ab-time">Syncing…</span>
           </div>
         </div>
+        <div id="ab-center">
+          <button
+            id="ab-center-btn"
+            type="button"
+            aria-label="展开扩展页"
+            aria-expanded="false"
+            title="展开扩展页"
+          >
+            <svg viewBox="0 0 20 20" aria-hidden="true">
+              <path id="ab-center-icon" d="M10 6l5 8H5l5-8z" />
+            </svg>
+          </button>
+        </div>
         <a
           id="ab-link"
           href="https://nof1.ai"
@@ -293,20 +343,43 @@
       </div>
       <div id="ab-row-viewport">
         <div id="ab-row"></div>
+        <div id="ab-overlay" aria-hidden="true"></div>
       </div>
       <div id="ab-toast" role="status" aria-live="polite"></div>
     </div>
   `;
   document.documentElement.appendChild(dock);
 
-  const wrap     = dock.querySelector('#ab-wrap');
-  const viewport = dock.querySelector('#ab-row-viewport');
-  const row      = dock.querySelector('#ab-row');
-  const toggle   = dock.querySelector('#ab-toggle');
-  const title    = dock.querySelector('#ab-title');
-  const dot      = dock.querySelector('#ab-dot');
-  const timeEl   = dock.querySelector('#ab-time');
-  const toast    = dock.querySelector('#ab-toast');
+  const wrap       = dock.querySelector('#ab-wrap');
+  const viewport   = dock.querySelector('#ab-row-viewport');
+  const row        = dock.querySelector('#ab-row');
+  const overlay    = dock.querySelector('#ab-overlay');
+  const toggle     = dock.querySelector('#ab-toggle');
+  const title      = dock.querySelector('#ab-title');
+  const centerBtn  = dock.querySelector('#ab-center-btn');
+  const centerIcon = dock.querySelector('#ab-center-icon');
+  const dot        = dock.querySelector('#ab-dot');
+  const timeEl     = dock.querySelector('#ab-time');
+  const toast      = dock.querySelector('#ab-toast');
+
+  const TRIANGLE_UP_PATH = 'M10 6l5 8H5l5-8z';
+  const TRIANGLE_DOWN_PATH = 'M10 14l5-8H5l5 8z';
+  let overlayActive = false;
+
+  function setOverlay(active) {
+    overlayActive = Boolean(active);
+    const expanded = overlayActive ? 'true' : 'false';
+    centerBtn.setAttribute('aria-expanded', expanded);
+    centerBtn.setAttribute('aria-label', overlayActive ? '收起扩展页' : '展开扩展页');
+    centerBtn.setAttribute('title', overlayActive ? '收起扩展页' : '展开扩展页');
+    centerIcon.setAttribute('d', overlayActive ? TRIANGLE_DOWN_PATH : TRIANGLE_UP_PATH);
+    overlay.classList.toggle('ab-show', overlayActive);
+    overlay.setAttribute('aria-hidden', overlayActive ? 'false' : 'true');
+    row.setAttribute('aria-hidden', overlayActive ? 'true' : 'false');
+    row.style.visibility = overlayActive ? 'hidden' : '';
+    row.style.pointerEvents = overlayActive ? 'none' : '';
+    viewport.style.overflowX = overlayActive ? 'hidden' : '';
+  }
 
   // 展开/收起（默认最小化）
   toggle.setAttribute('role', 'button');
@@ -318,6 +391,7 @@
 
   function applyCollapseState(){
     if (COLLAPSED) {
+      setOverlay(false);
       dock.classList.add('ab-collapsed');
       dock.classList.remove('ab-expanded');
       toggle.setAttribute('aria-hidden', 'false');
@@ -345,6 +419,9 @@
   }
   attachPressHandlers(toggle, expand);
   attachPressHandlers(title, minimize);
+  centerBtn.addEventListener('click', ()=>{
+    setOverlay(!overlayActive);
+  });
   minimize();
 
   let widthSyncPending = false;
