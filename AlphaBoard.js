@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Alpha Board（链上盈利数据展示/底部横排暂时/可隐藏/柔和玻璃）
 // @namespace    https://greasyfork.org/zh-CN/users/1211909-amazing-fish
-// @version      1.2.4.1
+// @version      1.2.5
 // @description  链上实时账户看板 · 默认最小化 · 按模型独立退避 · 轻量玻璃态 UI · 低饱和 P&L · 横排 6 卡片并展示相对更新时间
 // @match        *://*/*
 // @grant        GM_xmlhttpRequest
@@ -25,7 +25,7 @@
   globalScope[INSTALL_FLAG] = true;
 
   /**
-   * Alpha Board 1.2.4.1
+   * Alpha Board 1.2.5
    * ------------------
    *  - 针对多模型地址的链上账户价值聚合看板
    *  - 以 Hyperliquid API 为数据源，独立退避拉取、无本地持久化
@@ -289,22 +289,17 @@
       position: absolute;
       inset: 0;
       display: flex;
-      flex-direction: column;
       align-items: center;
       justify-content: center;
       z-index: 2;
-      padding: 16px 16px;
-      border-radius: 14px;
+      padding: 18px;
+      border-radius: 16px;
       background:
         linear-gradient(155deg, rgba(255,255,255,0.1), rgba(255,255,255,0.025)),
         rgba(18,21,28,0.26);
       border: 1px solid rgba(255,255,255,0.12);
       box-shadow: 0 10px 24px rgba(0,0,0,0.22);
       color: var(--text);
-      font-size: 13px;
-      font-weight: 600;
-      letter-spacing: .3px;
-      text-align: center;
       backdrop-filter: saturate(0.85) blur(3px);
       opacity: 0;
       pointer-events: none;
@@ -312,7 +307,104 @@
       visibility: hidden;
       transition: opacity .22s ease, transform .22s ease;
     }
-    #ab-overlay span { opacity: 0.9; text-shadow: 0 0 10px rgba(0,0,0,0.26); }
+    #ab-overlay .ab-feature {
+      display: flex;
+      align-items: stretch;
+      justify-content: center;
+      gap: 16px;
+      width: min(480px, 100%);
+    }
+    #ab-overlay .ab-feature-card {
+      position: relative;
+      border-radius: 14px;
+      background:
+        linear-gradient(160deg, rgba(148,163,184,0.12), transparent 65%),
+        rgba(18,21,28,0.38);
+      border: 1px solid rgba(255,255,255,0.10);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.05);
+      backdrop-filter: saturate(0.9) blur(3px);
+      overflow: hidden;
+      color: var(--text);
+    }
+    #ab-overlay .ab-feature-card-mini {
+      flex: 0 0 116px;
+      width: 116px;
+      aspect-ratio: 1 / 1;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: space-between;
+      padding: 16px 14px;
+      gap: 12px;
+    }
+    #ab-overlay .ab-feature-card-mini::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 30% 30%, rgba(96,165,250,0.25), transparent 60%);
+      opacity: 0.9;
+      pointer-events: none;
+    }
+    #ab-overlay .ab-feature-mini-badge {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(12,16,22,0.55);
+      border: 1px solid rgba(255,255,255,0.14);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .4px;
+      text-transform: uppercase;
+    }
+    #ab-overlay .ab-feature-mini-title {
+      position: relative;
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 1.3;
+      letter-spacing: .3px;
+      text-shadow: 0 0 10px rgba(0,0,0,0.26);
+    }
+    #ab-overlay .ab-feature-card-main {
+      flex: 1 1 auto;
+      min-width: 0;
+      padding: 20px 22px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 10px;
+      text-align: left;
+    }
+    #ab-overlay .ab-feature-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: .4px;
+      text-transform: uppercase;
+      background: rgba(96,165,250,0.18);
+      border: 1px solid rgba(148,163,184,0.35);
+      color: color-mix(in srgb, var(--text) 85%, white 15%);
+    }
+    #ab-overlay .ab-feature-title {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: .4px;
+      color: color-mix(in srgb, var(--text) 92%, white 8%);
+      text-shadow: 0 0 10px rgba(0,0,0,0.26);
+    }
+    #ab-overlay .ab-feature-desc {
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: .25px;
+      color: color-mix(in srgb, var(--text) 82%, rgba(148,163,184,1) 18%);
+      opacity: 0.9;
+    }
     #ab-dock.ab-feature-open #ab-row-viewport {
       overflow: hidden;
       padding-bottom: 0;
@@ -404,7 +496,17 @@
       <div id="ab-row-viewport">
         <div id="ab-row"></div>
         <div id="ab-overlay" role="region" aria-label="Alpha Board 扩展内容" aria-hidden="true">
-          <span>新功能扩展中</span>
+          <div class="ab-feature" role="presentation">
+            <div class="ab-feature-card ab-feature-card-mini" aria-hidden="true">
+              <span class="ab-feature-mini-badge">NOF1</span>
+              <span class="ab-feature-mini-title">Alpha Board</span>
+            </div>
+            <div class="ab-feature-card ab-feature-card-main">
+              <span class="ab-feature-chip">Alpha Board 1.2.5</span>
+              <span class="ab-feature-title">扩展页内容正在筹备中</span>
+              <span class="ab-feature-desc">我们新增了左侧品牌小卡片，并为后续功能留出空间，敬请期待。</span>
+            </div>
+          </div>
         </div>
       </div>
       <div id="ab-toast" role="status" aria-live="polite"></div>
