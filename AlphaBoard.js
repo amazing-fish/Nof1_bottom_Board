@@ -292,7 +292,7 @@
       max-width: min(96vw, var(--ab-target-width));
       box-sizing: border-box;
       padding: 16px 20px;
-      margin: 0;
+      margin: 8px 0 0;
       border-radius: 14px;
       background:
         linear-gradient(155deg, rgba(255,255,255,0.1), rgba(255,255,255,0.025)),
@@ -314,11 +314,12 @@
       display: flex;
       flex-direction: row;
       align-items: stretch;
-      justify-content: center;
+      justify-content: flex-start;
       gap: 18px;
       width: 100%;
       max-width: 720px;
-      margin: 0 auto;
+      margin: 0;
+      flex-wrap: wrap;
     }
     #ab-feature-root .ab-feature-summary {
       flex: 1 1 0;
@@ -383,19 +384,18 @@
         flex-direction: column;
         align-items: center;
         text-align: center;
+        margin: 0 auto;
       }
       #ab-feature-root .ab-feature-summary {
         text-align: center;
+        width: 100%;
       }
     }
     #ab-dock.ab-feature-open #ab-row-viewport {
       display: none;
     }
     #ab-dock.ab-feature-open #ab-feature-root {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
+      display: block;
       opacity: 1;
       pointer-events: auto;
       transform: scale(1);
