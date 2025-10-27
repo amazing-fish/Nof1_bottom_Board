@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Alpha Board（链上盈利数据展示/底部横排暂时/可隐藏/柔和玻璃）
 // @namespace    https://greasyfork.org/zh-CN/users/1211909-amazing-fish
-// @version      1.2.0
+// @version      1.2.1
 // @description  链上实时账户看板 · 默认最小化 · 按模型独立退避 · 轻量玻璃态 UI · 低饱和 P&L · 横排 6 卡片并展示相对更新时间
 // @match        *://*/*
 // @grant        GM_xmlhttpRequest
@@ -25,7 +25,7 @@
   globalScope[INSTALL_FLAG] = true;
 
   /**
-   * Alpha Board 1.2.0
+   * Alpha Board 1.2.1
    * ------------------
    *  - 针对多模型地址的链上账户价值聚合看板
    *  - 以 Hyperliquid API 为数据源，独立退避拉取、无本地持久化
@@ -121,6 +121,7 @@
     #ab-wrap {
       pointer-events: auto;
       display: none;
+      position: relative;
       background:
         linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.008)) ,
         radial-gradient(140% 160% at 0% 100%, rgba(96,165,250,0.05), transparent 60%) ,
@@ -135,10 +136,59 @@
       overflow: visible;
     }
 
+    #ab-expander {
+      display: none;
+      position: absolute;
+      top: -6px;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 34px;
+      height: 24px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(14,17,24,0.36);
+      color: #f5f7ff;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 10px 22px rgba(0,0,0,0.28);
+      backdrop-filter: saturate(0.9) blur(3px);
+      transition: background .2s ease, border-color .2s ease, transform .2s ease;
+      padding: 0;
+    }
+    #ab-expander:hover {
+      background: rgba(24,27,36,0.46);
+      border-color: rgba(255,255,255,0.16);
+      transform: translate(-50%, -50%) translateY(-1px);
+    }
+    #ab-expander:active {
+      transform: translate(-50%, -50%) scale(0.94);
+    }
+    #ab-expander::before {
+      content: '';
+      width: 0;
+      height: 0;
+      border-left: 7px solid transparent;
+      border-right: 7px solid transparent;
+      transition: border-color .2s ease;
+    }
+    #ab-expander[data-dir="up"]::before {
+      border-bottom: 9px solid currentColor;
+    }
+    #ab-expander[data-dir="down"]::before {
+      border-top: 9px solid currentColor;
+    }
+    #ab-expander:focus-visible {
+      outline: 2px solid rgba(96,165,250,0.65);
+      outline-offset: 2px;
+    }
+
     #ab-dock.ab-expanded #ab-toggle { display: none; }
     #ab-dock.ab-expanded #ab-wrap { display: block; }
     #ab-dock.ab-collapsed #ab-toggle { display: inline-flex; }
     #ab-dock.ab-collapsed #ab-wrap { display: none; }
+    #ab-dock.ab-expanded #ab-expander { display: flex; }
+    #ab-dock.ab-collapsed #ab-expander { display: none; }
 
     #ab-topbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:4px; padding:0; }
     #ab-left { display:flex; align-items:center; gap:8px; }
@@ -176,14 +226,14 @@
       overflow-x: auto;
       overflow-y: visible;
       scrollbar-width: thin;
-      scrollbar-color: rgba(255,255,255,0.10) transparent;
+      scrollbar-color: rgba(255,255,255,0.18) transparent;
       width: 100%;
       max-width: min(96vw, var(--ab-target-width));
       padding: 0 10px 8px 10px;
       margin: 0;
     }
     #ab-row-viewport::-webkit-scrollbar { height: 4px; }
-    #ab-row-viewport::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 999px; }
+    #ab-row-viewport::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.18); border-radius: 999px; }
 
     #ab-row {
       display:flex;
@@ -269,6 +319,7 @@
   dock.innerHTML = `
     <div id="ab-toggle" title="展开 Alpha Board">Alpha Board</div>
     <div id="ab-wrap" role="region" aria-label="Alpha Board 实时看板">
+      <button id="ab-expander" type="button" aria-expanded="false" aria-label="展开扩展内容"></button>
       <div id="ab-topbar">
         <div id="ab-left">
           <span id="ab-title" title="点击最小化">Alpha Board · 链上实时</span>
@@ -307,6 +358,31 @@
   const dot      = dock.querySelector('#ab-dot');
   const timeEl   = dock.querySelector('#ab-time');
   const toast    = dock.querySelector('#ab-toast');
+  const expander = dock.querySelector('#ab-expander');
+
+  let extraExpanded = false;
+  function updateExtraState(){
+    if (!expander) return;
+    expander.setAttribute('data-dir', extraExpanded ? 'down' : 'up');
+    expander.setAttribute('aria-expanded', extraExpanded ? 'true' : 'false');
+    const label = extraExpanded ? '收起扩展内容' : '展开扩展内容';
+    expander.setAttribute('aria-label', label);
+    expander.setAttribute('title', label);
+  }
+  updateExtraState();
+
+  function toggleExtra(){
+    extraExpanded = !extraExpanded;
+    updateExtraState();
+  }
+  if (expander) {
+    expander.addEventListener('click', toggleExtra);
+    expander.addEventListener('keydown', (ev)=>{
+      if (!ACTIVATION_KEYS.has(ev.key)) return;
+      ev.preventDefault();
+      toggleExtra();
+    });
+  }
 
   // 展开/收起（默认最小化）
   toggle.setAttribute('role', 'button');
@@ -318,6 +394,7 @@
 
   function applyCollapseState(){
     if (COLLAPSED) {
+      extraExpanded = false;
       dock.classList.add('ab-collapsed');
       dock.classList.remove('ab-expanded');
       toggle.setAttribute('aria-hidden', 'false');
@@ -332,6 +409,7 @@
       title.setAttribute('aria-expanded', 'true');
       wrap.setAttribute('aria-hidden', 'false');
     }
+    updateExtraState();
   }
   function minimize(){ COLLAPSED = true;  applyCollapseState(); }
   function expand()  { COLLAPSED = false; applyCollapseState(); scheduleWidthSync(); }
