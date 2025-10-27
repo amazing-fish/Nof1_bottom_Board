@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Alpha Board（链上盈利数据展示/底部横排暂时/可隐藏/柔和玻璃）
 // @namespace    https://greasyfork.org/zh-CN/users/1211909-amazing-fish
-// @version      1.2.4.1
+// @version      1.2.5
 // @description  链上实时账户看板 · 默认最小化 · 按模型独立退避 · 轻量玻璃态 UI · 低饱和 P&L · 横排 6 卡片并展示相对更新时间
 // @match        *://*/*
 // @grant        GM_xmlhttpRequest
@@ -25,7 +25,7 @@
   globalScope[INSTALL_FLAG] = true;
 
   /**
-   * Alpha Board 1.2.4.1
+   * Alpha Board 1.2.5
    * ------------------
    *  - 针对多模型地址的链上账户价值聚合看板
    *  - 以 Hyperliquid API 为数据源，独立退避拉取、无本地持久化
@@ -308,11 +308,13 @@
       backdrop-filter: saturate(0.85) blur(3px);
       opacity: 0;
       pointer-events: none;
-      transform: scale(0.98);
+      --ab-overlay-scale: 0.98;
+      --ab-overlay-open-scale: 1;
+      transform: scale(var(--ab-overlay-scale));
+      transform-origin: top center;
       visibility: hidden;
       transition: opacity .22s ease, transform .22s ease;
     }
-    #ab-overlay span { opacity: 0.9; text-shadow: 0 0 10px rgba(0,0,0,0.26); }
     #ab-dock.ab-feature-open #ab-row-viewport {
       overflow: hidden;
       padding-bottom: 0;
@@ -324,9 +326,9 @@
       inset: auto;
       width: 100%;
       height: 100%;
+      --ab-overlay-scale: var(--ab-overlay-open-scale);
       opacity: 1;
       pointer-events: auto;
-      transform: scale(1);
       visibility: visible;
     }
     #ab-dock.ab-feature-open #ab-row {
@@ -403,9 +405,12 @@
       </div>
       <div id="ab-row-viewport">
         <div id="ab-row"></div>
-        <div id="ab-overlay" role="region" aria-label="Alpha Board 扩展内容" aria-hidden="true">
-          <span>新功能扩展中</span>
-        </div>
+        <div
+          id="ab-overlay"
+          role="region"
+          aria-label="Alpha Board 扩展内容"
+          aria-hidden="true"
+        >新功能扩展中</div>
       </div>
       <div id="ab-toast" role="status" aria-live="polite"></div>
     </div>
@@ -451,6 +456,36 @@
   function minimize(){ COLLAPSED = true;  applyCollapseState(); }
   function expand()  { COLLAPSED = false; applyCollapseState(); scheduleWidthSync(); }
   let FEATURE_EXPANDED = false;
+  let featureViewportHeight = 0;
+  let featureLayoutPending = false;
+  function resetFeatureLayout(){
+    featureLayoutPending = false;
+    if (overlay) {
+      overlay.style.removeProperty('--ab-overlay-open-scale');
+    }
+  }
+  function scheduleFeatureLayout(){
+    if (!FEATURE_EXPANDED) return;
+    if (featureLayoutPending) return;
+    featureLayoutPending = true;
+    requestAnimationFrame(()=>{
+      featureLayoutPending = false;
+      applyFeatureLayout();
+    });
+  }
+  function applyFeatureLayout(){
+    if (!FEATURE_EXPANDED || !viewport || !overlay) return;
+    const limit = featureViewportHeight
+      || viewport.getBoundingClientRect().height
+      || viewport.scrollHeight;
+    if (!limit) return;
+    overlay.style.removeProperty('--ab-overlay-open-scale');
+    const naturalHeight = overlay.scrollHeight;
+    if (!naturalHeight) return;
+    if (naturalHeight <= limit + 0.5) return;
+    const scale = Math.max(0.45, limit / naturalHeight);
+    overlay.style.setProperty('--ab-overlay-open-scale', scale.toFixed(4));
+  }
   function setFeatureState(next){
     const nextExpanded = !!next;
     if (viewport) {
@@ -458,11 +493,14 @@
         const rect = viewport.getBoundingClientRect();
         const measured = rect.height || viewport.scrollHeight;
         if (measured) {
+          featureViewportHeight = measured;
           viewport.style.minHeight = `${measured}px`;
         } else {
+          featureViewportHeight = 0;
           viewport.style.removeProperty('min-height');
         }
       } else {
+        featureViewportHeight = 0;
         viewport.style.removeProperty('min-height');
       }
     }
@@ -475,7 +513,11 @@
       expandBtn.setAttribute('aria-expanded', FEATURE_EXPANDED ? 'true' : 'false');
       expandBtn.classList.toggle('expanded', FEATURE_EXPANDED);
     }
-    if (overlay) overlay.setAttribute('aria-hidden', FEATURE_EXPANDED ? 'false' : 'true');
+    if (overlay) {
+      overlay.setAttribute('aria-hidden', FEATURE_EXPANDED ? 'false' : 'true');
+      if (!FEATURE_EXPANDED) resetFeatureLayout();
+    }
+    if (FEATURE_EXPANDED) scheduleFeatureLayout();
   }
   function toggleFeature(){ setFeatureState(!FEATURE_EXPANDED); }
   function attachPressHandlers(el, handler){
@@ -493,6 +535,23 @@
   if (expandBtn) attachPressHandlers(expandBtn, toggleFeature);
   setFeatureState(false);
   minimize();
+
+  if (overlay && typeof MutationObserver !== 'undefined') {
+    const featureMutationObserver = new MutationObserver(()=>{
+      if (FEATURE_EXPANDED) scheduleFeatureLayout();
+    });
+    featureMutationObserver.observe(overlay, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
+  }
+  if (overlay && typeof ResizeObserver !== 'undefined') {
+    const featureResizeObserver = new ResizeObserver(()=>{
+      if (FEATURE_EXPANDED) scheduleFeatureLayout();
+    });
+    featureResizeObserver.observe(overlay);
+  }
 
   let widthSyncPending = false;
   let lastWidthApplied = 0;
@@ -543,7 +602,10 @@
     lastWidthApplied = maxWidthPx;
     dock.style.setProperty('--ab-target-width', `${maxWidthPx}px`);
   }
-  window.addEventListener('resize', scheduleWidthSync, { passive: true });
+  window.addEventListener('resize', ()=>{
+    scheduleWidthSync();
+    if (FEATURE_EXPANDED) scheduleFeatureLayout();
+  }, { passive: true });
   viewport.addEventListener('wheel', handleViewportWheel, { passive: false });
 
   let wheelAnimId = 0;
