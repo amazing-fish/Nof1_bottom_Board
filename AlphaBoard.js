@@ -289,30 +289,123 @@
       position: absolute;
       inset: 0;
       display: flex;
-      flex-direction: column;
       align-items: center;
       justify-content: center;
       z-index: 2;
-      padding: 16px 16px;
+      padding: 14px;
       border-radius: 14px;
       background:
-        linear-gradient(155deg, rgba(255,255,255,0.1), rgba(255,255,255,0.025)),
-        rgba(18,21,28,0.26);
-      border: 1px solid rgba(255,255,255,0.12);
-      box-shadow: 0 10px 24px rgba(0,0,0,0.22);
-      color: var(--text);
-      font-size: 13px;
-      font-weight: 600;
-      letter-spacing: .3px;
-      text-align: center;
-      backdrop-filter: saturate(0.85) blur(3px);
+        linear-gradient(155deg, rgba(255,255,255,0.06), rgba(255,255,255,0.015)),
+        rgba(16,18,24,0.22);
+      border: 1px solid rgba(255,255,255,0.08);
+      box-shadow: 0 18px 32px rgba(0,0,0,0.18);
+      color: rgba(234,237,248,0.88);
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: .22px;
+      text-align: left;
+      backdrop-filter: saturate(0.8) blur(3px);
       opacity: 0;
       pointer-events: none;
       transform: scale(0.98);
       visibility: hidden;
       transition: opacity .22s ease, transform .22s ease;
     }
-    #ab-overlay span { opacity: 0.9; text-shadow: 0 0 10px rgba(0,0,0,0.26); }
+    #ab-overlay .ab-ext-wrap {
+      --ab-ext-scale: 1;
+      display: flex;
+      align-items: stretch;
+      justify-content: center;
+      gap: 14px;
+      width: 100%;
+      max-width: 560px;
+      height: 100%;
+      max-height: 100%;
+      transform: scale(var(--ab-ext-scale));
+      transform-origin: center;
+      transition: transform .22s ease;
+    }
+    .ab-ext-mini-card {
+      flex: 0 0 auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      width: 118px;
+      aspect-ratio: 1 / 1;
+      border-radius: 18px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.08);
+      box-shadow: 0 10px 20px rgba(0,0,0,0.16);
+      color: rgba(238,241,255,0.88);
+      text-align: center;
+      letter-spacing: .32px;
+    }
+    .ab-ext-mini-title {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    .ab-ext-mini-sub {
+      font-size: 11px;
+      font-weight: 500;
+      opacity: 0.82;
+    }
+    .ab-ext-main-card {
+      flex: 1 1 0;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding: 18px 20px;
+      border-radius: 18px;
+      background:
+        linear-gradient(160deg, rgba(255,255,255,0.04), rgba(255,255,255,0)),
+        rgba(18,21,28,0.32);
+      border: 1px solid rgba(255,255,255,0.08);
+      box-shadow: 0 12px 28px rgba(0,0,0,0.16);
+      color: rgba(225,229,242,0.86);
+    }
+    .ab-ext-main-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .ab-ext-label {
+      font-size: 12.5px;
+      font-weight: 600;
+      letter-spacing: .28px;
+    }
+    .ab-ext-chip {
+      flex: 0 0 auto;
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: .36px;
+      color: rgba(230,233,246,0.78);
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    .ab-ext-main-desc {
+      margin: 0;
+      font-size: 11.5px;
+      line-height: 1.6;
+      color: rgba(214,219,234,0.82);
+    }
+    .ab-ext-main-list {
+      margin: 0;
+      padding-left: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 11px;
+      line-height: 1.5;
+      color: rgba(205,210,226,0.78);
+    }
+    .ab-ext-main-list li::marker { color: rgba(205,210,226,0.5); }
     #ab-dock.ab-feature-open #ab-row-viewport {
       overflow: hidden;
       padding-bottom: 0;
@@ -404,7 +497,26 @@
       <div id="ab-row-viewport">
         <div id="ab-row"></div>
         <div id="ab-overlay" role="region" aria-label="Alpha Board 扩展内容" aria-hidden="true">
-          <span>新功能扩展中</span>
+          <div class="ab-ext-wrap">
+            <div class="ab-ext-mini-card" aria-hidden="true">
+              <div class="ab-ext-mini-title">Alpha+</div>
+              <div class="ab-ext-mini-sub">扩展侧栏</div>
+            </div>
+            <div class="ab-ext-main-card">
+              <div class="ab-ext-main-head">
+                <span class="ab-ext-label">扩展实验室 · 预览</span>
+                <span class="ab-ext-chip">COMING SOON</span>
+              </div>
+              <p class="ab-ext-main-desc">
+                我们正在筹备更细腻的模型洞察、提醒与复盘工具。欢迎提交想法，帮助 Alpha Board 打磨拓展页体验。
+              </p>
+              <ul class="ab-ext-main-list">
+                <li>聚合收益对比与曲线</li>
+                <li>关键波动的自定义提醒</li>
+                <li>策略复盘与模型亮点速览</li>
+              </ul>
+            </div>
+          </div>
         </div>
       </div>
       <div id="ab-toast" role="status" aria-live="polite"></div>
@@ -419,6 +531,7 @@
   const title      = dock.querySelector('#ab-title');
   const expandBtn  = dock.querySelector('#ab-expand-btn');
   const overlay    = dock.querySelector('#ab-overlay');
+  const overlayWrap = overlay ? overlay.querySelector('.ab-ext-wrap') : null;
   const dot        = dock.querySelector('#ab-dot');
   const timeEl     = dock.querySelector('#ab-time');
   const toast      = dock.querySelector('#ab-toast');
@@ -451,6 +564,26 @@
   function minimize(){ COLLAPSED = true;  applyCollapseState(); }
   function expand()  { COLLAPSED = false; applyCollapseState(); scheduleWidthSync(); }
   let FEATURE_EXPANDED = false;
+  let overlayScalePending = false;
+  function scheduleOverlayScale(){
+    if (!overlay || !overlayWrap) return;
+    if (overlayScalePending) return;
+    overlayScalePending = true;
+    requestAnimationFrame(()=>{
+      requestAnimationFrame(()=>{
+        overlayScalePending = false;
+        if (!overlay || !overlayWrap) return;
+        overlayWrap.style.setProperty('--ab-ext-scale', '1');
+        const available = overlay.clientHeight;
+        const contentHeight = overlayWrap.scrollHeight;
+        if (available > 0 && contentHeight > available) {
+          const scale = Math.max(0.7, Math.min(1, available / contentHeight));
+          overlayWrap.style.setProperty('--ab-ext-scale', scale.toFixed(3));
+        }
+      });
+    });
+  }
+
   function setFeatureState(next){
     const nextExpanded = !!next;
     if (viewport) {
@@ -476,6 +609,11 @@
       expandBtn.classList.toggle('expanded', FEATURE_EXPANDED);
     }
     if (overlay) overlay.setAttribute('aria-hidden', FEATURE_EXPANDED ? 'false' : 'true');
+    if (FEATURE_EXPANDED) {
+      scheduleOverlayScale();
+    } else if (overlayWrap) {
+      overlayWrap.style.setProperty('--ab-ext-scale', '1');
+    }
   }
   function toggleFeature(){ setFeatureState(!FEATURE_EXPANDED); }
   function attachPressHandlers(el, handler){
@@ -491,6 +629,7 @@
   attachPressHandlers(toggle, expand);
   attachPressHandlers(title, minimize);
   if (expandBtn) attachPressHandlers(expandBtn, toggleFeature);
+  window.addEventListener('resize', ()=>{ if (FEATURE_EXPANDED) scheduleOverlayScale(); });
   setFeatureState(false);
   minimize();
 
