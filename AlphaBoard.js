@@ -180,21 +180,21 @@
       width: 26px;
       height: 26px;
       border-radius: 8px;
-      background: rgba(255,255,255,0.08);
-      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.05);
+      border: 1px solid transparent;
       color: #f5f7ff;
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 600;
       line-height: 1;
       cursor: pointer;
-      backdrop-filter: saturate(0.85) blur(3px);
-      box-shadow: 0 6px 16px rgba(0,0,0,0.18);
+      backdrop-filter: saturate(0.75) blur(3px);
+      box-shadow: 0 6px 16px rgba(0,0,0,0.16);
       transition: background .2s ease, border-color .2s ease, transform .15s ease, box-shadow .2s ease, color .2s ease;
     }
     #ab-expand-btn:hover {
-      background: rgba(255,255,255,0.14);
-      border-color: rgba(255,255,255,0.18);
-      box-shadow: 0 8px 20px rgba(0,0,0,0.22);
+      background: rgba(255,255,255,0.10);
+      border-color: rgba(255,255,255,0.12);
+      box-shadow: 0 8px 20px rgba(0,0,0,0.20);
       transform: translateY(-1px);
     }
     #ab-expand-btn:active { transform: scale(0.95); }
@@ -207,7 +207,7 @@
     #ab-row-viewport {
       position: relative;
       overflow-x: auto;
-      overflow-y: visible;
+      overflow-y: hidden;
       scrollbar-width: thin;
       scrollbar-color: rgba(255,255,255,0.16) transparent;
       width: 100%;
