@@ -289,27 +289,27 @@
       position: absolute;
       inset: 0;
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       justify-content: center;
       flex-wrap: wrap;
-      gap: 14px;
+      gap: 10px;
       z-index: 2;
-      padding: 18px 20px;
+      padding: 14px 16px;
       border-radius: 14px;
       background:
-        linear-gradient(155deg, rgba(255,255,255,0.1), rgba(255,255,255,0.025)),
-        rgba(18,21,28,0.26);
-      border: 1px solid rgba(255,255,255,0.12);
-      box-shadow: 0 10px 24px rgba(0,0,0,0.22);
+        linear-gradient(155deg, rgba(255,255,255,0.08), rgba(255,255,255,0.018)),
+        rgba(18,21,28,0.18);
+      border: 1px solid rgba(255,255,255,0.09);
+      box-shadow: 0 8px 18px rgba(0,0,0,0.18);
       color: var(--text);
-      font-size: 13px;
+      font-size: 12.5px;
       font-weight: 600;
-      letter-spacing: .3px;
+      letter-spacing: .26px;
       text-align: left;
-      backdrop-filter: saturate(0.85) blur(3px);
+      backdrop-filter: saturate(0.72) blur(2.6px);
       opacity: 0;
       pointer-events: none;
-      transform: scale(0.98);
+      transform: scale(0.99);
       visibility: hidden;
       transition: opacity .22s ease, transform .22s ease;
     }
@@ -317,51 +317,50 @@
       display: flex;
       flex-direction: column;
       justify-content: center;
-      gap: 8px;
-      padding: 18px 16px;
-      border-radius: 16px;
+      gap: 6px;
+      padding: 14px 12px;
+      border-radius: 13px;
       background:
-        linear-gradient(155deg, rgba(255,255,255,0.12), rgba(255,255,255,0.02)),
-        rgba(18,21,28,0.18);
-      border: 1px solid rgba(255,255,255,0.14);
-      box-shadow: 0 10px 24px rgba(0,0,0,0.22);
+        linear-gradient(155deg, rgba(255,255,255,0.08), rgba(255,255,255,0.01)),
+        rgba(18,21,28,0.14);
+      border: 1px solid rgba(255,255,255,0.1);
+      box-shadow: 0 6px 16px rgba(0,0,0,0.16);
       color: var(--text);
-      text-shadow: 0 0 10px rgba(0,0,0,0.26);
+      text-shadow: 0 0 8px rgba(0,0,0,0.22);
     }
     #ab-overlay .ab-feature-mini {
       align-items: center;
       text-align: center;
-      width: 132px;
-      min-width: 118px;
-      aspect-ratio: 1;
-      padding: 18px 14px;
+      min-width: 108px;
+      max-width: 140px;
+      padding: 12px 10px;
       background:
-        linear-gradient(180deg, rgba(255,255,255,0.18), rgba(255,255,255,0.04)),
-        rgba(18,21,28,0.12);
+        linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0.035)),
+        rgba(18,21,28,0.1);
     }
     #ab-overlay .ab-feature-mini-icon {
-      width: 46px;
-      height: 46px;
-      border-radius: 12px;
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
       display: grid;
       place-items: center;
-      font-size: 22px;
+      font-size: 19px;
       font-weight: 700;
       color: #0d1117;
-      background: rgba(255,255,255,0.85);
-      border: 1px solid rgba(255,255,255,0.46);
-      box-shadow: 0 8px 18px rgba(15,18,26,0.32);
+      background: rgba(255,255,255,0.82);
+      border: 1px solid rgba(255,255,255,0.32);
+      box-shadow: 0 5px 12px rgba(15,18,26,0.22);
     }
     #ab-overlay .ab-feature-mini-title {
-      font-size: 13px;
+      font-size: 12.5px;
       font-weight: 700;
-      letter-spacing: .4px;
+      letter-spacing: .32px;
     }
     #ab-overlay .ab-feature-mini-sub {
-      font-size: 11px;
+      font-size: 10.5px;
       font-weight: 600;
-      letter-spacing: .32px;
-      opacity: 0.88;
+      letter-spacing: .28px;
+      opacity: 0.82;
       text-transform: uppercase;
     }
     #ab-overlay .ab-feature-placeholder {
@@ -369,29 +368,29 @@
       justify-content: center;
       flex: 1;
       min-width: 180px;
-      max-width: 280px;
-      gap: 10px;
-      padding: 18px 20px;
+      max-width: 260px;
+      gap: 8px;
+      padding: 14px 16px;
       background:
-        linear-gradient(155deg, rgba(255,255,255,0.1), rgba(255,255,255,0.02)),
-        rgba(18,21,28,0.18);
+        linear-gradient(155deg, rgba(255,255,255,0.08), rgba(255,255,255,0.015)),
+        rgba(18,21,28,0.12);
     }
     #ab-overlay .ab-feature-placeholder h3 {
       margin: 0;
-      font-size: 16px;
-      font-weight: 700;
-      letter-spacing: .4px;
-      color: #f7faff;
-      text-shadow: 0 0 14px rgba(0,0,0,0.32);
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: .32px;
+      color: #eef3ff;
+      text-shadow: 0 0 10px rgba(0,0,0,0.24);
     }
     #ab-overlay .ab-feature-placeholder p {
       margin: 0;
-      font-size: 13px;
+      font-size: 12.5px;
       font-weight: 500;
-      letter-spacing: .26px;
-      color: rgba(230,232,238,0.92);
-      line-height: 1.4;
-      opacity: 0.92;
+      letter-spacing: .24px;
+      color: rgba(230,232,238,0.86);
+      line-height: 1.35;
+      opacity: 0.88;
     }
     #ab-dock.ab-feature-open #ab-row-viewport {
       overflow: hidden;
