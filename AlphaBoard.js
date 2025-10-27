@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Alpha Board（链上盈利数据展示/底部横排暂时/可隐藏/柔和玻璃）
 // @namespace    https://greasyfork.org/zh-CN/users/1211909-amazing-fish
-// @version      1.2.2
+// @version      1.2.3
 // @description  链上实时账户看板 · 默认最小化 · 按模型独立退避 · 轻量玻璃态 UI · 低饱和 P&L · 横排 6 卡片并展示相对更新时间
 // @match        *://*/*
 // @grant        GM_xmlhttpRequest
@@ -25,7 +25,7 @@
   globalScope[INSTALL_FLAG] = true;
 
   /**
-   * Alpha Board 1.2.2
+   * Alpha Board 1.2.3
    * ------------------
    *  - 针对多模型地址的链上账户价值聚合看板
    *  - 以 Hyperliquid API 为数据源，独立退避拉取、无本地持久化
@@ -180,8 +180,8 @@
       width: 26px;
       height: 26px;
       border-radius: 8px;
-      background: rgba(255,255,255,0.05);
-      border: 1px solid transparent;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
       color: #f5f7ff;
       font-size: 13px;
       font-weight: 600;
@@ -192,7 +192,7 @@
       transition: background .2s ease, border-color .2s ease, transform .15s ease, box-shadow .2s ease;
     }
     #ab-expand-btn:hover {
-      background: rgba(255,255,255,0.10);
+      background: rgba(255,255,255,0.08);
       border-color: rgba(255,255,255,0.12);
       box-shadow: 0 6px 18px rgba(0,0,0,0.20);
       transform: translateY(-1px);
@@ -201,6 +201,19 @@
     #ab-expand-btn:focus-visible {
       outline: 2px solid rgba(96,165,250,0.45);
       outline-offset: 2px;
+    }
+    #ab-expand-btn svg {
+      width: 12px;
+      height: 12px;
+      stroke: currentColor;
+      stroke-width: 1.6;
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      transition: transform .2s ease;
+    }
+    #ab-expand-btn.expanded svg {
+      transform: rotate(180deg);
     }
 
     /* 横向一行 + 滚动 */
@@ -349,7 +362,11 @@
             aria-label="展开扩展内容"
             aria-expanded="false"
             title="展开扩展内容"
-          >▼</button>
+          >
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              <path d="M4.25 6.25L8 10l3.75-3.75" />
+            </svg>
+          </button>
         </div>
         <div id="ab-right">
           <a
@@ -422,10 +439,10 @@
     dock.classList.toggle('ab-feature-open', FEATURE_EXPANDED);
     if (expandBtn) {
       const label = FEATURE_EXPANDED ? '收起扩展内容' : '展开扩展内容';
-      expandBtn.textContent = FEATURE_EXPANDED ? '▲' : '▼';
       expandBtn.setAttribute('aria-label', label);
       expandBtn.setAttribute('title', label);
       expandBtn.setAttribute('aria-expanded', FEATURE_EXPANDED ? 'true' : 'false');
+      expandBtn.classList.toggle('expanded', FEATURE_EXPANDED);
     }
     if (overlay) overlay.setAttribute('aria-hidden', FEATURE_EXPANDED ? 'false' : 'true');
   }
