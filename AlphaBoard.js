@@ -285,68 +285,99 @@
       .flash-down { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--red)   18%, transparent); }
     }
 
-    /* 扩展页容器与饼图占位卡片（饼图将在后续迭代填充真实数据） */
+    /* 扩展页容器与饼图占位卡片：自适应双栏布局（饼图将在后续迭代填充真实数据） */
     #ab-feature-root {
       display: none;
       width: 100%;
       max-width: min(96vw, var(--ab-target-width));
       box-sizing: border-box;
-      padding: 16px 20px;
-      margin: 8px 0 0;
-      border-radius: 14px;
+      padding: 18px 22px 20px;
+      margin: 10px 0 0;
+      border-radius: 16px;
       background:
         linear-gradient(155deg, rgba(255,255,255,0.1), rgba(255,255,255,0.025)),
         rgba(18,21,28,0.26);
       border: 1px solid rgba(255,255,255,0.12);
-      box-shadow: 0 10px 24px rgba(0,0,0,0.22);
+      box-shadow: 0 12px 26px rgba(0,0,0,0.24);
       color: var(--text);
       font-size: 13px;
       font-weight: 600;
       letter-spacing: .3px;
       text-align: left;
-      backdrop-filter: saturate(0.85) blur(3px);
+      backdrop-filter: saturate(0.9) blur(3px);
       opacity: 0;
       pointer-events: none;
       transform: scale(0.98);
       transition: opacity .22s ease, transform .22s ease;
+      overflow: hidden;
     }
-    #ab-feature-root .ab-feature-grid {
-      display: flex;
-      flex-direction: row;
+    #ab-feature-root .ab-feature-layout {
+      display: grid;
+      grid-template-columns: minmax(240px, 0.85fr) minmax(0, 1fr);
       align-items: stretch;
-      justify-content: flex-start;
-      gap: 18px;
+      gap: 22px;
       width: 100%;
-      max-width: 720px;
       margin: 0;
-      flex-wrap: wrap;
     }
-    #ab-feature-root .ab-feature-summary {
-      flex: 1 1 0;
+    #ab-feature-root .ab-feature-details {
       display: flex;
       flex-direction: column;
-      justify-content: center;
-      gap: 10px;
-      text-align: left;
-      opacity: 0.9;
+      gap: 14px;
+      min-width: 0;
       text-shadow: 0 0 10px rgba(0,0,0,0.26);
+    }
+    #ab-feature-root .ab-feature-summary {
+      display: grid;
+      gap: 8px;
+    }
+    #ab-feature-root .ab-feature-summary h3 {
+      margin: 0;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: .35px;
+      text-transform: uppercase;
+      color: #f9fbff;
     }
     #ab-feature-root .ab-feature-summary p {
       margin: 0;
-      line-height: 1.6;
+      line-height: 1.7;
+      font-weight: 500;
+      opacity: 0.9;
+    }
+    #ab-feature-root .ab-feature-list {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 10px;
+    }
+    #ab-feature-root .ab-feature-list li {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 12px;
+      padding: 10px 12px;
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: .2px;
+      color: rgba(229,231,235,0.92);
+      box-shadow: inset 0 0 0 1px rgba(0,0,0,0.18);
+      min-height: 48px;
+      display: flex;
+      align-items: center;
     }
     #ab-feature-root .ab-feature-pie-card {
-      flex: 0 0 220px;
       display: flex;
       flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 12px;
-      padding: 18px 16px 20px;
-      border-radius: 16px;
-      background: rgba(17,20,27,0.42);
-      border: 1px solid rgba(255,255,255,0.15);
-      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04);
+      align-items: flex-start;
+      justify-content: flex-start;
+      gap: 14px;
+      padding: 20px 18px 22px;
+      border-radius: 18px;
+      background: rgba(17,20,27,0.46);
+      border: 1px solid rgba(255,255,255,0.16);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.05);
+      min-width: 0;
     }
     #ab-feature-root .ab-feature-pie-card h3 {
       margin: 0;
@@ -356,11 +387,18 @@
       text-transform: uppercase;
       color: #f9fbff;
     }
+    #ab-feature-root .ab-feature-pie-card .ab-feature-pie-subtitle {
+      margin: 0;
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: .24px;
+      color: rgba(226,232,240,0.74);
+    }
     #ab-feature-root .ab-feature-pie-placeholder {
-      width: 100%;
+      width: min(260px, 100%);
       aspect-ratio: 1 / 1;
       border-radius: 50%;
-      border: 1.5px dashed rgba(255,255,255,0.28);
+      border: 1.5px dashed rgba(255,255,255,0.3);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -368,26 +406,43 @@
       font-weight: 600;
       letter-spacing: .25px;
       color: rgba(229,231,235,0.85);
-      background: rgba(255,255,255,0.04);
-      box-shadow: inset 0 10px 25px rgba(15,18,26,0.42);
+      background: rgba(255,255,255,0.05);
+      box-shadow: inset 0 12px 28px rgba(15,18,26,0.45);
     }
     #ab-feature-root .ab-feature-pie-note {
       margin: 0;
       font-size: 11px;
       font-weight: 500;
       letter-spacing: .2px;
-      color: rgba(226,232,240,0.68);
-      text-align: center;
+      color: rgba(226,232,240,0.72);
     }
-    @media (max-width: 640px) {
-      #ab-feature-root .ab-feature-grid {
-        flex-direction: column;
+    @media (max-width: 880px) {
+      #ab-feature-root .ab-feature-layout {
+        grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
+      }
+    }
+    @media (max-width: 700px) {
+      #ab-feature-root {
+        padding: 16px 18px 18px;
+      }
+      #ab-feature-root .ab-feature-layout {
+        grid-template-columns: 1fr;
+        gap: 18px;
+      }
+      #ab-feature-root .ab-feature-pie-card {
         align-items: center;
         text-align: center;
+        max-width: 280px;
         margin: 0 auto;
       }
-      #ab-feature-root .ab-feature-summary {
+      #ab-feature-root .ab-feature-details {
         text-align: center;
+        align-items: center;
+      }
+      #ab-feature-root .ab-feature-details .ab-feature-summary {
+        text-align: center;
+      }
+      #ab-feature-root .ab-feature-list {
         width: 100%;
       }
     }
@@ -480,19 +535,30 @@
         role="region"
         aria-label="Alpha Board 扩展内容"
         aria-hidden="true"
-        data-ab-feature-content
         hidden
       >
         <!-- 左侧卡片预留后续链上资产饼图 -->
-        <div class="ab-feature-grid">
+        <div class="ab-feature-layout" data-ab-feature-content>
           <section class="ab-feature-pie-card" aria-label="资产占比饼图占位">
-            <h3>Asset Mix</h3>
+            <div class="ab-feature-summary">
+              <h3>Asset Mix</h3>
+              <p class="ab-feature-pie-subtitle">链上资产分布预留位</p>
+            </div>
             <div class="ab-feature-pie-placeholder">Pie Chart Placeholder</div>
             <p class="ab-feature-pie-note">预留用于账户资产饼图展示</p>
           </section>
-          <div class="ab-feature-summary">
-            <p>扩展模块筹备中，我们正在整合更详细的模型表现、资产拆分等维度。</p>
-            <p>左侧占位卡片将引入链上资产分布饼图，后续上线时会自动填充真实数据。</p>
+          <div class="ab-feature-details">
+            <div class="ab-feature-summary">
+              <h3>扩展页筹备中</h3>
+              <p>我们正在整理更丰富的模型表现、资产拆分与风险提示指标，届时会在此补充多维图表。</p>
+              <p>该占位卡片用于未来的链上资产分布饼图，请留意后续版本更新。</p>
+            </div>
+            <ul class="ab-feature-list" aria-label="扩展数据预览占位">
+              <li>模型维度表现详情</li>
+              <li>资产仓位与币种拆分</li>
+              <li>收益波动与风险区间</li>
+              <li>链上地址协同分析</li>
+            </ul>
           </div>
         </div>
       </div>
@@ -550,6 +616,8 @@
     prevTransformOrigin: '',
     prevMaxHeight: '',
     prevMaxWidth: '',
+    prevOverflow: '',
+    mode: '', // '' | 'overflow'
   };
 
   // 优先使用扩展区域内的真实内容容器，避免直接缩放带背景的外壳。
@@ -584,6 +652,8 @@
       else target.style.removeProperty('max-height');
       if (featureScaleState.prevMaxWidth) target.style.maxWidth = featureScaleState.prevMaxWidth;
       else target.style.removeProperty('max-width');
+      if (featureScaleState.prevOverflow) target.style.overflow = featureScaleState.prevOverflow;
+      else target.style.removeProperty('overflow');
     }
     featureScaleState.el = null;
     featureScaleState.applied = false;
@@ -591,12 +661,15 @@
     featureScaleState.prevTransformOrigin = '';
     featureScaleState.prevMaxHeight = '';
     featureScaleState.prevMaxWidth = '';
+    featureScaleState.prevOverflow = '';
+    featureScaleState.mode = '';
   }
 
   /**
    * 当扩展页内容高度超过主卡片原始高度时，使用统一缩放避免撑开主容器。
-   * 通过 transform scale 进行等比压缩，并辅以 max-height/max-width 防止抖动。
-   * 注意：缩放会影响内容的可点击区域，若后续扩展需要独立滚动，应重新评估策略。
+   * 优先在真实内容容器上以左上角为基准做等比缩放，保持布局贴左。
+   * 若缩放比例过小则退化为限制高度并启用内部滚动，避免卡片被压缩到不可用。
+   * 注意：缩放或滚动都会影响可点击区域，若后续扩展需要独立滚动区域需重新评估策略。
    */
   function applyFeatureScale(){
     const content = resolveFeatureContentNode();
@@ -620,8 +693,9 @@
     const heightRatio = featureTargetHeight ? featureTargetHeight / contentHeight : 1;
     const widthRatio = featureTargetWidth && contentWidth ? featureTargetWidth / contentWidth : 1;
     const scale = Math.min(1, heightRatio, widthRatio || 1);
+    const needsOverflow = featureTargetHeight && contentHeight > featureTargetHeight && scale < 0.92;
 
-    if (scale >= 0.999) {
+    if (scale >= 0.999 && !needsOverflow) {
       resetFeatureScale();
       return;
     }
@@ -632,10 +706,32 @@
       featureScaleState.prevTransformOrigin = content.style.transformOrigin;
       featureScaleState.prevMaxHeight = content.style.maxHeight;
       featureScaleState.prevMaxWidth = content.style.maxWidth;
+      featureScaleState.prevOverflow = content.style.overflow;
+      featureScaleState.mode = '';
+    }
+
+    if (needsOverflow) {
+      if (featureScaleState.mode !== 'overflow') {
+        if (featureScaleState.prevTransform) content.style.transform = featureScaleState.prevTransform;
+        else content.style.removeProperty('transform');
+      }
+      content.style.transformOrigin = 'top left';
+      if (featureTargetHeight) content.style.maxHeight = `${featureTargetHeight}px`;
+      if (featureTargetWidth) content.style.maxWidth = `${featureTargetWidth}px`;
+      content.style.overflow = 'auto';
+      featureScaleState.mode = 'overflow';
+      featureScaleState.applied = true;
+      return;
+    }
+
+    if (featureScaleState.mode === 'overflow') {
+      if (featureScaleState.prevOverflow) content.style.overflow = featureScaleState.prevOverflow;
+      else content.style.removeProperty('overflow');
+      featureScaleState.mode = '';
     }
 
     content.style.transform = `scale(${scale})`;
-    content.style.transformOrigin = 'top center';
+    content.style.transformOrigin = 'top left';
     if (featureTargetHeight) content.style.maxHeight = `${featureTargetHeight}px`;
     if (featureTargetWidth) content.style.maxWidth = `${featureTargetWidth}px`;
     featureScaleState.applied = true;
@@ -656,17 +752,23 @@
         const rect = viewport.getBoundingClientRect();
         const measured = rect.height || viewport.scrollHeight;
         if (measured) {
-          viewport.style.minHeight = `${measured}px`;
-          featureTargetHeight = measured;
+          const stableHeight = Math.max(measured, 320);
+          viewport.style.minHeight = `${stableHeight}px`;
+          featureTargetHeight = stableHeight;
         } else {
           viewport.style.removeProperty('min-height');
+          featureTargetHeight = 0;
         }
         const widthMeasured = rect.width || viewport.scrollWidth;
         if (widthMeasured) {
           featureTargetWidth = widthMeasured;
+        } else {
+          featureTargetWidth = 0;
         }
       } else {
         viewport.style.removeProperty('min-height');
+        featureTargetHeight = 0;
+        featureTargetWidth = 0;
       }
     }
     FEATURE_EXPANDED = nextExpanded;
