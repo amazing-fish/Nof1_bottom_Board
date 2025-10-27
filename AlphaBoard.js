@@ -132,13 +132,48 @@
       width: min(96vw, var(--ab-target-width));
       max-width: min(96vw, var(--ab-target-width));
       backdrop-filter: saturate(0.75) blur(3px);
+      position: relative;
       overflow: visible;
+    }
+
+    #ab-expander {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translate(-50%, -70%);
+      padding: 4px 10px;
+      border-radius: 10px;
+      background: rgba(22,25,34,0.46);
+      border: 1px solid rgba(255,255,255,0.16);
+      color: var(--text);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: .25px;
+      box-shadow: 0 10px 22px rgba(0,0,0,0.28);
+      cursor: pointer;
+      user-select: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 32px;
+      gap: 4px;
+      backdrop-filter: saturate(0.85) blur(3px);
+      transition: background .2s ease, border-color .2s ease, transform .15s ease;
+    }
+    #ab-expander:hover {
+      background: rgba(28,33,44,0.58);
+      border-color: rgba(255,255,255,0.22);
+      transform: translate(-50%, -72%);
+    }
+    #ab-expander:active {
+      transform: translate(-50%, -68%);
     }
 
     #ab-dock.ab-expanded #ab-toggle { display: none; }
     #ab-dock.ab-expanded #ab-wrap { display: block; }
     #ab-dock.ab-collapsed #ab-toggle { display: inline-flex; }
     #ab-dock.ab-collapsed #ab-wrap { display: none; }
+    #ab-dock.ab-collapsed #ab-expander { display: none; }
 
     #ab-topbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:4px; padding:0; }
     #ab-left { display:flex; align-items:center; gap:8px; }
@@ -176,14 +211,14 @@
       overflow-x: auto;
       overflow-y: visible;
       scrollbar-width: thin;
-      scrollbar-color: rgba(255,255,255,0.10) transparent;
+      scrollbar-color: rgba(255,255,255,0.20) transparent;
       width: 100%;
       max-width: min(96vw, var(--ab-target-width));
       padding: 0 10px 8px 10px;
       margin: 0;
     }
     #ab-row-viewport::-webkit-scrollbar { height: 4px; }
-    #ab-row-viewport::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 999px; }
+    #ab-row-viewport::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.18); border-radius: 999px; }
 
     #ab-row {
       display:flex;
@@ -269,6 +304,7 @@
   dock.innerHTML = `
     <div id="ab-toggle" title="展开 Alpha Board">Alpha Board</div>
     <div id="ab-wrap" role="region" aria-label="Alpha Board 实时看板">
+      <button id="ab-expander" type="button" aria-expanded="false" aria-label="展开上方扩展内容">▲</button>
       <div id="ab-topbar">
         <div id="ab-left">
           <span id="ab-title" title="点击最小化">Alpha Board · 链上实时</span>
@@ -307,6 +343,7 @@
   const dot      = dock.querySelector('#ab-dot');
   const timeEl   = dock.querySelector('#ab-time');
   const toast    = dock.querySelector('#ab-toast');
+  const expander = dock.querySelector('#ab-expander');
 
   // 展开/收起（默认最小化）
   toggle.setAttribute('role', 'button');
@@ -324,6 +361,10 @@
       toggle.setAttribute('aria-expanded', 'false');
       title.setAttribute('aria-expanded', 'false');
       wrap.setAttribute('aria-hidden', 'true');
+      if (expander){
+        expander.setAttribute('aria-hidden', 'true');
+        expander.setAttribute('tabindex', '-1');
+      }
     } else {
       dock.classList.add('ab-expanded');
       dock.classList.remove('ab-collapsed');
@@ -331,6 +372,10 @@
       toggle.setAttribute('aria-expanded', 'true');
       title.setAttribute('aria-expanded', 'true');
       wrap.setAttribute('aria-hidden', 'false');
+      if (expander){
+        expander.setAttribute('aria-hidden', 'false');
+        expander.setAttribute('tabindex', '0');
+      }
     }
   }
   function minimize(){ COLLAPSED = true;  applyCollapseState(); }
@@ -342,6 +387,20 @@
       ev.preventDefault();
       handler(ev);
     });
+  }
+  if (expander){
+    let upperAreaExpanded = false;
+    const renderExpander = ()=>{
+      expander.textContent = upperAreaExpanded ? '▼' : '▲';
+      expander.setAttribute('aria-expanded', upperAreaExpanded ? 'true' : 'false');
+      expander.setAttribute('aria-label', upperAreaExpanded ? '收起上方扩展内容' : '展开上方扩展内容');
+    };
+    const toggleUpperArea = ()=>{
+      upperAreaExpanded = !upperAreaExpanded;
+      renderExpander();
+    };
+    attachPressHandlers(expander, toggleUpperArea);
+    renderExpander();
   }
   attachPressHandlers(toggle, expand);
   attachPressHandlers(title, minimize);
