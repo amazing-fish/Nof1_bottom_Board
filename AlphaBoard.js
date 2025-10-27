@@ -451,6 +451,112 @@
   function minimize(){ COLLAPSED = true;  applyCollapseState(); }
   function expand()  { COLLAPSED = false; applyCollapseState(); scheduleWidthSync(); }
   let FEATURE_EXPANDED = false;
+  let featureTargetHeight = 0;
+  let featureTargetWidth = 0;
+  let featureScaleFrame = null;
+  const featureScaleState = {
+    el: null,
+    applied: false,
+    prevTransform: '',
+    prevTransformOrigin: '',
+    prevMaxHeight: '',
+    prevMaxWidth: '',
+  };
+
+  // 优先使用扩展区域内的真实内容容器，避免直接缩放带背景的 overlay 外壳。
+  function resolveFeatureContentNode(){
+    if (!overlay) return null;
+    const preferred = overlay.querySelector('[data-ab-overlay-content], [data-ab-feature-content], [data-feature-root]');
+    if (preferred instanceof HTMLElement) return preferred;
+    if (overlay.children && overlay.children.length) {
+      for (const child of overlay.children) {
+        if (child instanceof HTMLElement) return child;
+      }
+    }
+    return overlay instanceof HTMLElement ? overlay : null;
+  }
+
+  function resetFeatureScale(){
+    if (featureScaleFrame) {
+      cancelAnimationFrame(featureScaleFrame);
+      featureScaleFrame = null;
+    }
+    if (!featureScaleState.el) return;
+    if (featureScaleState.applied) {
+      const target = featureScaleState.el;
+      if (featureScaleState.prevTransform) target.style.transform = featureScaleState.prevTransform;
+      else target.style.removeProperty('transform');
+      if (featureScaleState.prevTransformOrigin) target.style.transformOrigin = featureScaleState.prevTransformOrigin;
+      else target.style.removeProperty('transform-origin');
+      if (featureScaleState.prevMaxHeight) target.style.maxHeight = featureScaleState.prevMaxHeight;
+      else target.style.removeProperty('max-height');
+      if (featureScaleState.prevMaxWidth) target.style.maxWidth = featureScaleState.prevMaxWidth;
+      else target.style.removeProperty('max-width');
+    }
+    featureScaleState.el = null;
+    featureScaleState.applied = false;
+    featureScaleState.prevTransform = '';
+    featureScaleState.prevTransformOrigin = '';
+    featureScaleState.prevMaxHeight = '';
+    featureScaleState.prevMaxWidth = '';
+  }
+
+  /**
+   * 当扩展页内容高度超过主卡片原始高度时，使用统一缩放避免撑开主容器。
+   * 通过 transform scale 进行等比压缩，并辅以 max-height/max-width 防止抖动。
+   * 注意：缩放会影响内容的可点击区域，若后续扩展需要独立滚动，应重新评估策略。
+   */
+  function applyFeatureScale(){
+    const content = resolveFeatureContentNode();
+    if (!content) return;
+    if (featureScaleState.el && featureScaleState.el !== content) {
+      resetFeatureScale();
+    }
+    if (!featureTargetHeight) {
+      const rect = viewport?.getBoundingClientRect();
+      featureTargetHeight = rect?.height || viewport?.scrollHeight || featureTargetHeight;
+    }
+    if (!featureTargetWidth) {
+      const rect = viewport?.getBoundingClientRect();
+      featureTargetWidth = rect?.width || viewport?.scrollWidth || featureTargetWidth;
+    }
+    const rect = content.getBoundingClientRect();
+    const contentHeight = rect.height || content.scrollHeight;
+    const contentWidth = rect.width || content.scrollWidth;
+    if (!contentHeight) return;
+
+    const heightRatio = featureTargetHeight ? featureTargetHeight / contentHeight : 1;
+    const widthRatio = featureTargetWidth && contentWidth ? featureTargetWidth / contentWidth : 1;
+    const scale = Math.min(1, heightRatio, widthRatio || 1);
+
+    if (scale >= 0.999) {
+      resetFeatureScale();
+      return;
+    }
+
+    if (featureScaleState.el !== content) {
+      featureScaleState.el = content;
+      featureScaleState.prevTransform = content.style.transform;
+      featureScaleState.prevTransformOrigin = content.style.transformOrigin;
+      featureScaleState.prevMaxHeight = content.style.maxHeight;
+      featureScaleState.prevMaxWidth = content.style.maxWidth;
+    }
+
+    content.style.transform = `scale(${scale})`;
+    content.style.transformOrigin = 'top center';
+    if (featureTargetHeight) content.style.maxHeight = `${featureTargetHeight}px`;
+    if (featureTargetWidth) content.style.maxWidth = `${featureTargetWidth}px`;
+    featureScaleState.applied = true;
+  }
+
+  function scheduleFeatureScale(){
+    if (featureScaleFrame) cancelAnimationFrame(featureScaleFrame);
+    featureScaleFrame = requestAnimationFrame(()=>{
+      featureScaleFrame = null;
+      applyFeatureScale();
+    });
+  }
+
   function setFeatureState(next){
     const nextExpanded = !!next;
     if (viewport) {
@@ -459,8 +565,13 @@
         const measured = rect.height || viewport.scrollHeight;
         if (measured) {
           viewport.style.minHeight = `${measured}px`;
+          featureTargetHeight = measured;
         } else {
           viewport.style.removeProperty('min-height');
+        }
+        const widthMeasured = rect.width || viewport.scrollWidth;
+        if (widthMeasured) {
+          featureTargetWidth = widthMeasured;
         }
       } else {
         viewport.style.removeProperty('min-height');
@@ -476,6 +587,11 @@
       expandBtn.classList.toggle('expanded', FEATURE_EXPANDED);
     }
     if (overlay) overlay.setAttribute('aria-hidden', FEATURE_EXPANDED ? 'false' : 'true');
+    if (FEATURE_EXPANDED) {
+      scheduleFeatureScale();
+    } else {
+      resetFeatureScale();
+    }
   }
   function toggleFeature(){ setFeatureState(!FEATURE_EXPANDED); }
   function attachPressHandlers(el, handler){
