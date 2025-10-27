@@ -289,10 +289,8 @@
       position: absolute;
       inset: 0;
       display: flex;
-      align-items: flex-start;
+      align-items: center;
       justify-content: center;
-      flex-wrap: wrap;
-      gap: 10px;
       z-index: 2;
       padding: 14px 16px;
       border-radius: 14px;
@@ -312,6 +310,17 @@
       transform: scale(0.99);
       visibility: hidden;
       transition: opacity .22s ease, transform .22s ease;
+      box-sizing: border-box;
+      --ab-feature-scale: 1;
+    }
+    #ab-overlay .ab-feature-inner {
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      transform: scale(var(--ab-feature-scale));
+      transform-origin: center;
     }
     #ab-overlay .ab-feature-card {
       display: flex;
@@ -483,14 +492,16 @@
       <div id="ab-row-viewport">
         <div id="ab-row"></div>
         <div id="ab-overlay" role="region" aria-label="Alpha Board 扩展内容" aria-hidden="true">
-          <div class="ab-feature-card ab-feature-mini" aria-label="Alpha Drop 预览">
-            <div class="ab-feature-mini-icon" aria-hidden="true">α</div>
-            <div class="ab-feature-mini-title">Alpha Drop</div>
-            <div class="ab-feature-mini-sub">Coming Soon</div>
-          </div>
-          <div class="ab-feature-card ab-feature-placeholder">
-            <h3>扩展页建设中</h3>
-            <p>我们正在打磨更多实时洞察，敬请期待下一次更新。</p>
+          <div class="ab-feature-inner">
+            <div class="ab-feature-card ab-feature-mini" aria-label="Alpha Drop 预览">
+              <div class="ab-feature-mini-icon" aria-hidden="true">α</div>
+              <div class="ab-feature-mini-title">Alpha Drop</div>
+              <div class="ab-feature-mini-sub">Coming Soon</div>
+            </div>
+            <div class="ab-feature-card ab-feature-placeholder">
+              <h3>扩展页建设中</h3>
+              <p>我们正在打磨更多实时洞察，敬请期待下一次更新。</p>
+            </div>
           </div>
         </div>
       </div>
@@ -506,6 +517,7 @@
   const title      = dock.querySelector('#ab-title');
   const expandBtn  = dock.querySelector('#ab-expand-btn');
   const overlay    = dock.querySelector('#ab-overlay');
+  const overlayInner = overlay ? overlay.querySelector('.ab-feature-inner') : null;
   const dot        = dock.querySelector('#ab-dot');
   const timeEl     = dock.querySelector('#ab-time');
   const toast      = dock.querySelector('#ab-toast');
@@ -538,6 +550,38 @@
   function minimize(){ COLLAPSED = true;  applyCollapseState(); }
   function expand()  { COLLAPSED = false; applyCollapseState(); scheduleWidthSync(); }
   let FEATURE_EXPANDED = false;
+  let featureScaleRaf = 0;
+  function refreshFeatureScale(){
+    if (!overlay || !overlayInner || !viewport) return;
+    if (!FEATURE_EXPANDED) {
+      overlay.style.removeProperty('--ab-feature-scale');
+      return;
+    }
+    overlay.style.setProperty('--ab-feature-scale', '1');
+    let available = viewport.clientHeight;
+    if (available) {
+      const styles = typeof globalScope.getComputedStyle === 'function' ? globalScope.getComputedStyle(overlay) : null;
+      if (styles) {
+        const padTop = parseFloat(styles.paddingTop || '0') || 0;
+        const padBottom = parseFloat(styles.paddingBottom || '0') || 0;
+        available = Math.max(0, available - padTop - padBottom);
+      }
+    }
+    const innerHeight = overlayInner.offsetHeight;
+    if (!available || !innerHeight) {
+      overlay.style.removeProperty('--ab-feature-scale');
+      return;
+    }
+    const scale = Math.min(1, available / innerHeight);
+    overlay.style.setProperty('--ab-feature-scale', scale.toFixed(3));
+  }
+  function scheduleFeatureScale(){
+    if (featureScaleRaf) cancelAnimationFrame(featureScaleRaf);
+    featureScaleRaf = requestAnimationFrame(()=>{
+      featureScaleRaf = 0;
+      refreshFeatureScale();
+    });
+  }
   function setFeatureState(next){
     const nextExpanded = !!next;
     if (viewport) {
@@ -562,7 +606,17 @@
       expandBtn.setAttribute('aria-expanded', FEATURE_EXPANDED ? 'true' : 'false');
       expandBtn.classList.toggle('expanded', FEATURE_EXPANDED);
     }
-    if (overlay) overlay.setAttribute('aria-hidden', FEATURE_EXPANDED ? 'false' : 'true');
+    if (overlay) {
+      overlay.setAttribute('aria-hidden', FEATURE_EXPANDED ? 'false' : 'true');
+      if (FEATURE_EXPANDED) scheduleFeatureScale();
+      else {
+        if (featureScaleRaf) {
+          cancelAnimationFrame(featureScaleRaf);
+          featureScaleRaf = 0;
+        }
+        overlay.style.removeProperty('--ab-feature-scale');
+      }
+    }
   }
   function toggleFeature(){ setFeatureState(!FEATURE_EXPANDED); }
   function attachPressHandlers(el, handler){
@@ -578,6 +632,9 @@
   attachPressHandlers(toggle, expand);
   attachPressHandlers(title, minimize);
   if (expandBtn) attachPressHandlers(expandBtn, toggleFeature);
+  if (typeof globalScope.addEventListener === 'function') {
+    globalScope.addEventListener('resize', ()=>{ if (FEATURE_EXPANDED) scheduleFeatureScale(); });
+  }
   setFeatureState(false);
   minimize();
 
