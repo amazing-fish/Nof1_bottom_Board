@@ -180,21 +180,21 @@
       width: 26px;
       height: 26px;
       border-radius: 8px;
-      background: rgba(255,255,255,0.05);
-      border: 1px solid transparent;
-      color: #f5f7ff;
+      background: rgba(255,255,255,0.035);
+      border: 1px solid rgba(255,255,255,0.08);
+      color: rgba(245,247,255,0.94);
       font-size: 13px;
       font-weight: 600;
       line-height: 1;
       cursor: pointer;
       backdrop-filter: saturate(0.75) blur(3px);
-      box-shadow: 0 6px 16px rgba(0,0,0,0.16);
+      box-shadow: 0 4px 14px rgba(0,0,0,0.16);
       transition: background .2s ease, border-color .2s ease, transform .15s ease, box-shadow .2s ease, color .2s ease;
     }
     #ab-expand-btn:hover {
-      background: rgba(255,255,255,0.10);
+      background: rgba(255,255,255,0.08);
       border-color: rgba(255,255,255,0.12);
-      box-shadow: 0 8px 20px rgba(0,0,0,0.20);
+      box-shadow: 0 6px 18px rgba(0,0,0,0.20);
       transform: translateY(-1px);
     }
     #ab-expand-btn:active { transform: scale(0.95); }
@@ -282,7 +282,7 @@
       align-items: center;
       justify-content: center;
       z-index: 2;
-      padding: 40px 24px;
+      padding: 22px 20px;
       border-radius: 14px;
       background:
         linear-gradient(155deg, rgba(255,255,255,0.1), rgba(255,255,255,0.025)),
