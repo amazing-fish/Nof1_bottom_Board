@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Alpha Board（链上盈利数据展示/底部横排暂时/可隐藏/柔和玻璃）
 // @namespace    https://greasyfork.org/zh-CN/users/1211909-amazing-fish
-// @version      1.2.4
+// @version      1.2.4.1
 // @description  链上实时账户看板 · 默认最小化 · 按模型独立退避 · 轻量玻璃态 UI · 低饱和 P&L · 横排 6 卡片并展示相对更新时间
 // @match        *://*/*
 // @grant        GM_xmlhttpRequest
@@ -25,7 +25,7 @@
   globalScope[INSTALL_FLAG] = true;
 
   /**
-   * Alpha Board 1.2.4
+   * Alpha Board 1.2.4.1
    * ------------------
    *  - 针对多模型地址的链上账户价值聚合看板
    *  - 以 Hyperliquid API 为数据源，独立退避拉取、无本地持久化
@@ -180,21 +180,19 @@
       width: 26px;
       height: 26px;
       border-radius: 8px;
-      background: rgba(255,255,255,0.04);
-      border: 1px solid rgba(255,255,255,0.08);
+      background: transparent;
+      border: 1px solid transparent;
       color: #f5f7ff;
       font-size: 13px;
       font-weight: 600;
       line-height: 1;
       cursor: pointer;
-      backdrop-filter: saturate(0.75) blur(3px);
-      box-shadow: 0 4px 14px rgba(0,0,0,0.16);
-      transition: background .2s ease, border-color .2s ease, transform .15s ease, box-shadow .2s ease;
+      backdrop-filter: none;
+      box-shadow: none;
+      transition: transform .15s ease, color .2s ease;
     }
     #ab-expand-btn:hover {
-      background: rgba(255,255,255,0.08);
-      border-color: rgba(255,255,255,0.12);
-      box-shadow: 0 6px 18px rgba(0,0,0,0.20);
+      color: #ffffff;
       transform: translateY(-1px);
     }
     #ab-expand-btn:active { transform: scale(0.95); }
@@ -325,7 +323,7 @@
       position: relative;
       inset: auto;
       width: 100%;
-      min-height: 120px;
+      height: 100%;
       opacity: 1;
       pointer-events: auto;
       transform: scale(1);
@@ -454,7 +452,21 @@
   function expand()  { COLLAPSED = false; applyCollapseState(); scheduleWidthSync(); }
   let FEATURE_EXPANDED = false;
   function setFeatureState(next){
-    FEATURE_EXPANDED = !!next;
+    const nextExpanded = !!next;
+    if (viewport) {
+      if (nextExpanded) {
+        const rect = viewport.getBoundingClientRect();
+        const measured = rect.height || viewport.scrollHeight;
+        if (measured) {
+          viewport.style.minHeight = `${measured}px`;
+        } else {
+          viewport.style.removeProperty('min-height');
+        }
+      } else {
+        viewport.style.removeProperty('min-height');
+      }
+    }
+    FEATURE_EXPANDED = nextExpanded;
     dock.classList.toggle('ab-feature-open', FEATURE_EXPANDED);
     if (expandBtn) {
       const label = FEATURE_EXPANDED ? '收起扩展内容' : '展开扩展内容';
