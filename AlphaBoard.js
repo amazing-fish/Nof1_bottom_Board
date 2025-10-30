@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Alpha Board（链上盈利数据展示/底部横排暂时/可隐藏/柔和玻璃）
 // @namespace    https://greasyfork.org/zh-CN/users/1211909-amazing-fish
-// @version      1.2.4.1
+// @version      1.2.5
 // @description  链上实时账户看板 · 默认最小化 · 按模型独立退避 · 轻量玻璃态 UI · 低饱和 P&L · 横排 6 卡片并展示相对更新时间
 // @match        *://*/*
 // @grant        GM_xmlhttpRequest
@@ -25,7 +25,7 @@
   globalScope[INSTALL_FLAG] = true;
 
   /**
-   * Alpha Board 1.2.4.1
+   * Alpha Board 1.2.5
    * ------------------
    *  - 针对多模型地址的链上账户价值聚合看板
    *  - 以 Hyperliquid API 为数据源，独立退避拉取、无本地持久化
@@ -41,6 +41,7 @@
   const BACKOFF_STEPS = [3000, 5000, 8000, 12000]; // 网络失败退避梯度
   const LOCK_RETRY_MS = 700;         // 未抢到共享锁时的重试间隔
   let   COLLAPSED = true;            // 默认以折叠状态启动
+  const BTC_BACKOFF_STEPS = [5000, 8000, 12000, 18000]; // 扩展卡 BTC 轮询退避节奏
 
   // 默认地址列表：直接在此修改即可，不会弹窗也不写本地存储
   const ADDRS = {
@@ -290,10 +291,11 @@
       inset: 0;
       display: flex;
       flex-direction: column;
-      align-items: center;
+      align-items: stretch;
       justify-content: center;
+      gap: 14px;
       z-index: 2;
-      padding: 16px 16px;
+      padding: 18px;
       border-radius: 14px;
       background:
         linear-gradient(155deg, rgba(255,255,255,0.1), rgba(255,255,255,0.025)),
@@ -304,7 +306,7 @@
       font-size: 13px;
       font-weight: 600;
       letter-spacing: .3px;
-      text-align: center;
+      text-align: left;
       backdrop-filter: saturate(0.85) blur(3px);
       opacity: 0;
       pointer-events: none;
@@ -312,7 +314,96 @@
       visibility: hidden;
       transition: opacity .22s ease, transform .22s ease;
     }
-    #ab-overlay span { opacity: 0.9; text-shadow: 0 0 10px rgba(0,0,0,0.26); }
+    #ab-overlay .ab-feature-grid {
+      display: grid;
+      gap: 14px;
+      width: 100%;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    }
+    .ab-feature-card {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 14px 16px;
+      border-radius: 12px;
+      background: rgba(15,18,25,0.38);
+      border: 1px solid rgba(255,255,255,0.08);
+      box-shadow: 0 12px 26px rgba(0,0,0,0.22);
+      backdrop-filter: saturate(0.9) blur(3px);
+      min-height: 128px;
+    }
+    .ab-feature-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .ab-feature-name {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+    .ab-feature-icon {
+      width: 22px;
+      height: 22px;
+      border-radius: 7px;
+      display: grid;
+      place-items: center;
+      font-size: 12px;
+      font-weight: 700;
+      color: #10131a;
+      background: rgba(248,251,255,0.75);
+      border: 1px solid rgba(255,255,255,0.28);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.16);
+    }
+    .ab-feature-title {
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: .25px;
+      color: #f6f8fe;
+      text-shadow: 0 0 6px rgba(0,0,0,0.28);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .ab-feature-time {
+      font-size: 10.5px;
+      color: #dbe3f5;
+      font-weight: 500;
+      letter-spacing: .2px;
+      white-space: nowrap;
+    }
+    .ab-feature-value {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: .28px;
+      color: #f9fbff;
+      text-shadow: 0 0 6px rgba(0,0,0,0.28);
+      font-variant-numeric: tabular-nums;
+    }
+    .ab-feature-sub {
+      font-size: 11px;
+      color: #aab4c6;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px 12px;
+      line-height: 1.4;
+      letter-spacing: .15px;
+    }
+    .ab-feature-sub .pos { color: color-mix(in srgb, var(--green) 82%, #d1fae5); }
+    .ab-feature-sub .neg { color: color-mix(in srgb, var(--red) 82%, #fee2e2); }
+    .ab-feature-placeholder {
+      justify-content: center;
+      color: rgba(222,230,245,0.78);
+    }
+    .ab-feature-placeholder p {
+      margin: 0;
+      font-size: 11.5px;
+      font-weight: 500;
+      letter-spacing: .18px;
+      text-shadow: 0 0 8px rgba(0,0,0,0.28);
+    }
     #ab-dock.ab-feature-open #ab-row-viewport {
       overflow: hidden;
       padding-bottom: 0;
@@ -404,7 +495,25 @@
       <div id="ab-row-viewport">
         <div id="ab-row"></div>
         <div id="ab-overlay" role="region" aria-label="Alpha Board 扩展内容" aria-hidden="true">
-          <span>新功能扩展中</span>
+          <div class="ab-feature-grid" role="list">
+            <div class="ab-feature-card" id="ab-btc-card" role="listitem">
+              <div class="ab-feature-head">
+                <div class="ab-feature-name">
+                  <span class="ab-feature-icon">₿</span>
+                  <div class="ab-feature-title">BTC / USD · Hyperliquid</div>
+                </div>
+                <div class="ab-feature-time" id="ab-btc-time">等待数据</div>
+              </div>
+              <div class="ab-feature-value" id="ab-btc-price"><span class="skeleton" style="width:120px;"></span></div>
+              <div class="ab-feature-sub">
+                <span id="ab-btc-change">24H 变化 —</span>
+                <span id="ab-btc-volume">成交量 —</span>
+              </div>
+            </div>
+            <div class="ab-feature-card ab-feature-placeholder" role="listitem">
+              <p>更多扩展内容筹备中…</p>
+            </div>
+          </div>
         </div>
       </div>
       <div id="ab-toast" role="status" aria-live="polite"></div>
@@ -419,6 +528,11 @@
   const title      = dock.querySelector('#ab-title');
   const expandBtn  = dock.querySelector('#ab-expand-btn');
   const overlay    = dock.querySelector('#ab-overlay');
+  const btcCard    = overlay ? overlay.querySelector('#ab-btc-card') : null;
+  const btcPriceEl = overlay ? overlay.querySelector('#ab-btc-price') : null;
+  const btcChangeEl= overlay ? overlay.querySelector('#ab-btc-change') : null;
+  const btcVolumeEl= overlay ? overlay.querySelector('#ab-btc-volume') : null;
+  const btcTimeEl  = overlay ? overlay.querySelector('#ab-btc-time') : null;
   const dot        = dock.querySelector('#ab-dot');
   const timeEl     = dock.querySelector('#ab-time');
   const toast      = dock.querySelector('#ab-toast');
@@ -633,6 +747,10 @@
   let   seenAnySuccess = false;
   const lastValueMap = new Map();       // 涨跌闪烁使用
   const addrSubscribers = new Map();    // canon addr -> Set<modelKey>
+  const btcState = { price: null, prevDay: null, volume: null, ts: 0 };
+  let   btcLastPrice = null;
+  let   btcPollTimer = 0;
+  let   btcPollStep = 0;
 
   MODELS.forEach((m) => {
     const card = document.createElement('div');
@@ -759,6 +877,37 @@
       const num = v ? parseFloat(v) : NaN;
       return Number.isFinite(num) ? num : null;
     } catch { return null; }
+  }
+
+  /**
+   * 获取 Hyperliquid 上 BTC 的最新标记价格等上下文。
+   * @returns {Promise<{price:number, prevDay:number|null, volume:number|null, ts:number}|null>}
+   */
+  async function fetchBtcTicker(){
+    try {
+      const resp = await gmPostJson('https://api.hyperliquid.xyz/info', {
+        type: 'metaAndAssetCtxs'
+      });
+      if (!Array.isArray(resp) || resp.length < 2) return null;
+      const universe = resp[0]?.universe;
+      const ctxs = resp[1];
+      if (!Array.isArray(universe) || !Array.isArray(ctxs)) return null;
+      const idx = universe.findIndex(item => item && item.name === 'BTC');
+      if (idx < 0 || !ctxs[idx]) return null;
+      const ctx = ctxs[idx];
+      const price = toNumber(ctx.markPx);
+      if (!Number.isFinite(price)) return null;
+      const prevDay = toNumber(ctx.prevDayPx);
+      const volume = toNumber(ctx.dayBaseVlm);
+      return {
+        price,
+        prevDay: Number.isFinite(prevDay) && prevDay > 0 ? prevDay : null,
+        volume: Number.isFinite(volume) && volume >= 0 ? volume : null,
+        ts: Date.now()
+      };
+    } catch {
+      return null;
+    }
   }
 
   function tryUseSharedResult(canon, rec){
@@ -947,7 +1096,90 @@
   // 为所有模型启动独立轮询
   MODELS.forEach(m => startPoller(m.key));
 
+  function startBtcPoller(){
+    if (!btcCard) return;
+    const run = async () => {
+      try {
+        const result = await fetchBtcTicker();
+        if (result) {
+          btcPollStep = 0;
+          btcState.price = result.price;
+          btcState.prevDay = result.prevDay;
+          btcState.volume = result.volume;
+          btcState.ts = result.ts;
+          renderBtcCard();
+        } else if (btcState.price == null) {
+          renderBtcCard();
+          btcPollStep = Math.min(btcPollStep + 1, BTC_BACKOFF_STEPS.length - 1);
+        } else {
+          btcPollStep = Math.min(btcPollStep + 1, BTC_BACKOFF_STEPS.length - 1);
+        }
+      } catch {
+        btcPollStep = Math.min(btcPollStep + 1, BTC_BACKOFF_STEPS.length - 1);
+      } finally {
+        scheduleNext();
+      }
+    };
+
+    function scheduleNext(customDelay){
+      const idx = Math.min(btcPollStep, BTC_BACKOFF_STEPS.length - 1);
+      const base = typeof customDelay === 'number' ? customDelay : BTC_BACKOFF_STEPS[idx];
+      const jitter = typeof customDelay === 'number' ? 0 : (Math.random() * 2 - 1) * JITTER_MS;
+      clearTimeout(btcPollTimer);
+      btcPollTimer = setTimeout(run, Math.max(0, base + jitter));
+    }
+
+    btcPollStep = 0;
+    clearTimeout(btcPollTimer);
+    run();
+  }
+
+  startBtcPoller();
+
   /** ===== 渲染 ===== */
+  function renderBtcCard(){
+    if (!btcCard) return;
+    if (btcState.price == null) {
+      if (btcPriceEl) btcPriceEl.innerHTML = '<span class="skeleton" style="width:120px;"></span>';
+      if (btcChangeEl) btcChangeEl.textContent = '24H 变化 —';
+      if (btcVolumeEl) btcVolumeEl.textContent = '成交量 —';
+      if (btcTimeEl) btcTimeEl.textContent = '等待数据';
+      btcCard.classList.remove('flash-up', 'flash-down');
+      return;
+    }
+
+    if (btcPriceEl) btcPriceEl.textContent = fmtUSD(btcState.price);
+
+    if (btcChangeEl) {
+      if (btcState.prevDay != null && btcState.prevDay > 0) {
+        const diff = btcState.price - btcState.prevDay;
+        const pct = diff / btcState.prevDay;
+        const cls = diff >= 0 ? 'pos' : 'neg';
+        btcChangeEl.innerHTML = `24H 变化 <span class="${cls}">${fmtUSD(diff)} · ${fmtPct(pct)}</span>`;
+      } else {
+        btcChangeEl.textContent = '24H 变化 数据缺失';
+      }
+    }
+
+    if (btcVolumeEl) {
+      if (btcState.volume != null) {
+        btcVolumeEl.textContent = `成交量 ${fmtBtcVolume(btcState.volume)} BTC`;
+      } else {
+        btcVolumeEl.textContent = '成交量 —';
+      }
+    }
+
+    refreshBtcTime();
+
+    if (typeof btcLastPrice === 'number' && btcLastPrice !== btcState.price) {
+      btcCard.classList.remove('flash-up', 'flash-down');
+      void btcCard.offsetWidth;
+      btcCard.classList.add(btcLastPrice < btcState.price ? 'flash-up' : 'flash-down');
+      setTimeout(()=>btcCard.classList.remove('flash-up','flash-down'), 260);
+    }
+    btcLastPrice = btcState.price;
+  }
+
   /**
    * 更新单个模型卡片的文案、排序及动画效果。
    * @param {string} mkey
@@ -1054,8 +1286,13 @@
       el.textContent = fmtSince(s.ts, now);
     });
   }
+  function refreshBtcTime(){
+    if (!btcTimeEl) return;
+    if (!btcState.ts) { btcTimeEl.textContent = '等待数据'; return; }
+    btcTimeEl.textContent = fmtSince(btcState.ts);
+  }
   // 轻量 UI 刷新：仅更新文本与状态点，不追加网络请求
-  setInterval(()=>{ updateStatus(); refreshCardTimes(); }, 1000);
+  setInterval(()=>{ updateStatus(); refreshCardTimes(); refreshBtcTime(); }, 1000);
 
   /** ===== 工具函数 ===== */
   function canonAddress(addr){ return typeof addr === 'string' ? addr.trim().toLowerCase() : ''; }
@@ -1066,6 +1303,13 @@
   function fmtUSD(n){ return n==null ? '—' : '$' + n.toLocaleString(undefined,{maximumFractionDigits:2}); }
   /** 输出带正负号的百分比 */
   function fmtPct(n){ return n==null ? '—' : ((n>=0?'+':'') + (n*100).toFixed(2) + '%'); }
+  /** BTC 成交量轻量格式化 */
+  function fmtBtcVolume(n){
+    if (n == null) return '—';
+    const abs = Math.abs(n);
+    const digits = abs >= 1000 ? 0 : abs >= 100 ? 1 : 2;
+    return n.toLocaleString(undefined, { maximumFractionDigits: digits });
+  }
   /**
    * 根据时间戳生成中文相对时间。
    * @param {number} ts
@@ -1093,5 +1337,13 @@
     toast.classList.add('show');
     clearTimeout(showToast._t);
     showToast._t = setTimeout(()=>toast.classList.remove('show'), 1200);
+  }
+  function toNumber(value){
+    if (typeof value === 'number') return Number.isFinite(value) ? value : NaN;
+    if (typeof value === 'string' && value.trim() !== '') {
+      const num = Number(value);
+      return Number.isFinite(num) ? num : NaN;
+    }
+    return NaN;
   }
 })();
