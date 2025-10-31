@@ -1,13 +1,14 @@
 // ==UserScript==
 // @name         Alpha Board（链上盈利数据展示/底部横排暂时/可隐藏/柔和玻璃）
 // @namespace    https://greasyfork.org/zh-CN/users/1211909-amazing-fish
-// @version      1.2.4.1
+// @version      1.2.5
 // @description  链上实时账户看板 · 默认最小化 · 按模型独立退避 · 轻量玻璃态 UI · 低饱和 P&L · 横排 6 卡片并展示相对更新时间
 // @match        *://*/*
 // @grant        GM_xmlhttpRequest
 // @grant        GM_addStyle
 // @grant        GM_setClipboard
 // @connect      api.hyperliquid.xyz
+// @connect      api.binance.com
 // @license      MIT
 // ==/UserScript==
 
@@ -61,6 +62,17 @@
     { key: 'DeepSeek V3.1', badge: 'DSK' },
     { key: 'Qwen3-Max', badge: 'QWN' },
   ];
+
+  const FEATURE_CARDS = [
+    {
+      key: 'btc',
+      badge: 'BTC',
+      name: 'BTC · 实时价',
+      source: '数据源 Binance',
+    },
+  ];
+
+  const FEATURE_REFRESH_MS = 6000;
 
   const VISIBLE_CARD_COUNT = 4;
   const WIDTH_EXTRA_PX = 80;
@@ -290,8 +302,9 @@
       inset: 0;
       display: flex;
       flex-direction: column;
-      align-items: center;
-      justify-content: center;
+      align-items: flex-start;
+      justify-content: flex-start;
+      gap: 14px;
       z-index: 2;
       padding: 16px 16px;
       border-radius: 14px;
@@ -301,10 +314,9 @@
       border: 1px solid rgba(255,255,255,0.12);
       box-shadow: 0 10px 24px rgba(0,0,0,0.22);
       color: var(--text);
-      font-size: 13px;
       font-weight: 600;
-      letter-spacing: .3px;
-      text-align: center;
+      letter-spacing: .25px;
+      text-align: left;
       backdrop-filter: saturate(0.85) blur(3px);
       opacity: 0;
       pointer-events: none;
@@ -312,7 +324,17 @@
       visibility: hidden;
       transition: opacity .22s ease, transform .22s ease;
     }
-    #ab-overlay span { opacity: 0.9; text-shadow: 0 0 10px rgba(0,0,0,0.26); }
+    #ab-feature-cards {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--gap);
+      width: 100%;
+    }
+    #ab-feature-cards .ab-card {
+      min-width: 168px;
+      pointer-events: auto;
+    }
+    #ab-feature-cards .ab-icon { cursor: default; }
     #ab-dock.ab-feature-open #ab-row-viewport {
       overflow: hidden;
       padding-bottom: 0;
@@ -323,7 +345,7 @@
       position: relative;
       inset: auto;
       width: 100%;
-      height: 100%;
+      height: auto;
       opacity: 1;
       pointer-events: auto;
       transform: scale(1);
@@ -404,7 +426,7 @@
       <div id="ab-row-viewport">
         <div id="ab-row"></div>
         <div id="ab-overlay" role="region" aria-label="Alpha Board 扩展内容" aria-hidden="true">
-          <span>新功能扩展中</span>
+          <div id="ab-feature-cards"></div>
         </div>
       </div>
       <div id="ab-toast" role="status" aria-live="polite"></div>
@@ -419,9 +441,40 @@
   const title      = dock.querySelector('#ab-title');
   const expandBtn  = dock.querySelector('#ab-expand-btn');
   const overlay    = dock.querySelector('#ab-overlay');
+  const featureCardsContainer = dock.querySelector('#ab-feature-cards');
   const dot        = dock.querySelector('#ab-dot');
   const timeEl     = dock.querySelector('#ab-time');
   const toast      = dock.querySelector('#ab-toast');
+
+  const featureCardsByKey = new Map();
+  const featureState = new Map();
+  const featureTimeDisplays = new Map();
+  const featureLastValueMap = new Map();
+  const featureMetaByKey = new Map();
+
+  if (featureCardsContainer) {
+    FEATURE_CARDS.forEach((item) => {
+      const card = document.createElement('div');
+      card.className = 'ab-card ab-feature-card';
+      card.setAttribute('data-key', item.key);
+      card.innerHTML = `
+        <div class="ab-icon" aria-hidden="true">${item.badge}</div>
+        <div class="ab-body">
+          <div class="ab-head">
+            <div class="ab-name" title="${item.name}">${item.name}</div>
+            <div class="ab-time">等待数据</div>
+          </div>
+          <div class="ab-val"><span class="skeleton" style="width:120px;"></span></div>
+          <div class="ab-sub">${item.source || ''}</div>
+        </div>
+      `;
+      featureCardsContainer.appendChild(card);
+      featureCardsByKey.set(item.key, card);
+      featureTimeDisplays.set(item.key, card.querySelector('.ab-time'));
+      featureState.set(item.key, { price: null, change: null, percent: null, ts: 0 });
+      featureMetaByKey.set(item.key, item);
+    });
+  }
 
   // 展开/收起（默认最小化）
   toggle.setAttribute('role', 'button');
@@ -744,6 +797,20 @@
     });
   }
 
+  function gmGetJson(url) {
+    return new Promise((resolve, reject) => {
+      GM_xmlhttpRequest({
+        method: 'GET', url,
+        timeout: 10000,
+        onload: (res) => {
+          try { resolve(JSON.parse(res.responseText)); }
+          catch (e) { reject(e); }
+        },
+        onerror: reject, ontimeout: reject
+      });
+    });
+  }
+
   /**
    * 拉取地址的账户价值，优先读取逐仓/全仓字段，异常时返回 null。
    * @param {string} address
@@ -758,6 +825,25 @@
       const v = resp?.marginSummary?.accountValue || resp?.crossMarginSummary?.accountValue;
       const num = v ? parseFloat(v) : NaN;
       return Number.isFinite(num) ? num : null;
+    } catch { return null; }
+  }
+
+  async function fetchBtcTicker(){
+    try {
+      const resp = await gmGetJson('https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT');
+      const priceRaw = resp?.lastPrice ?? resp?.weightedAvgPrice ?? resp?.price;
+      const changeRaw = resp?.priceChange;
+      const pctRaw = resp?.priceChangePercent;
+      const price = priceRaw == null ? NaN : parseFloat(priceRaw);
+      if (!Number.isFinite(price)) return null;
+      const change = changeRaw == null ? NaN : parseFloat(changeRaw);
+      const percent = pctRaw == null ? NaN : parseFloat(pctRaw);
+      return {
+        price,
+        change: Number.isFinite(change) ? change : null,
+        percent: Number.isFinite(percent) ? percent / 100 : null,
+        ts: Date.now(),
+      };
     } catch { return null; }
   }
 
@@ -947,6 +1033,37 @@
   // 为所有模型启动独立轮询
   MODELS.forEach(m => startPoller(m.key));
 
+  function startFeatureBtcPoller(){
+    if (!featureCardsByKey.has('btc')) return;
+    const key = 'btc';
+    let timer = null;
+
+    async function run(){
+      try {
+        const data = await fetchBtcTicker();
+        if (data) updateFeatureCard(key, data);
+        else {
+          const hadValue = !!(featureState.get(key)?.price != null);
+          updateFeatureCard(key, null, hadValue);
+        }
+      } catch {
+        const hadValue = !!(featureState.get(key)?.price != null);
+        updateFeatureCard(key, null, hadValue);
+      } finally {
+        scheduleNext();
+      }
+    }
+
+    function scheduleNext(){
+      clearTimeout(timer);
+      timer = setTimeout(run, FEATURE_REFRESH_MS);
+    }
+
+    run();
+  }
+
+  startFeatureBtcPoller();
+
   /** ===== 渲染 ===== */
   /**
    * 更新单个模型卡片的文案、排序及动画效果。
@@ -1025,6 +1142,62 @@
     scheduleWidthSync();
   }
 
+  function updateFeatureCard(key, payload, errored){
+    const card = featureCardsByKey.get(key);
+    if (!card) return;
+
+    let s = featureState.get(key);
+    if (!s) {
+      s = { price: null, change: null, percent: null, ts: 0 };
+      featureState.set(key, s);
+    }
+
+    const meta = featureMetaByKey.get(key) || {};
+    const valEl = card.querySelector('.ab-val');
+    const subEl = card.querySelector('.ab-sub');
+
+    if (!payload || payload.price == null) {
+      if (s.price == null) {
+        valEl.innerHTML = '<span class="skeleton" style="width:120px;"></span>';
+        subEl.textContent = errored ? '获取失败，请稍后' : (meta.source || '等待数据…');
+        s.ts = 0;
+      }
+      return;
+    }
+
+    const nowTs = payload.ts || Date.now();
+    const prev = featureLastValueMap.get(key);
+    valEl.textContent = fmtUSD(payload.price);
+    const change = typeof payload.change === 'number' ? payload.change : null;
+    const percent = typeof payload.percent === 'number' ? payload.percent : null;
+
+    if (change != null && percent != null) {
+      subEl.innerHTML = `24h <span class="${change>=0?'pos':'neg'}">${fmtUSDWithSign(change)} · ${fmtPct(percent)}</span>`;
+    } else if (change != null) {
+      subEl.innerHTML = `24h <span class="${change>=0?'pos':'neg'}">${fmtUSDWithSign(change)}</span>`;
+    } else if (percent != null) {
+      subEl.innerHTML = `24h <span class="${percent>=0?'pos':'neg'}">${fmtPct(percent)}</span>`;
+    } else if (meta.source) {
+      subEl.textContent = meta.source;
+    } else {
+      subEl.textContent = '最新行情';
+    }
+
+    if (typeof prev === 'number' && prev !== payload.price) {
+      card.classList.remove('flash-up','flash-down');
+      void card.offsetWidth;
+      card.classList.add(prev < payload.price ? 'flash-up' : 'flash-down');
+      setTimeout(()=>card.classList.remove('flash-up','flash-down'), 260);
+    }
+    featureLastValueMap.set(key, payload.price);
+
+    s.price = payload.price;
+    s.change = change;
+    s.percent = percent;
+    s.ts = nowTs;
+    refreshCardTimes();
+  }
+
   /** ===== 顶栏状态：Live / Stale / Dead ===== */
   /**
    * 刷新顶栏状态点及文字，反映最新网络健康情况。
@@ -1053,6 +1226,12 @@
       if (!s.ts) { el.textContent = '等待数据'; return; }
       el.textContent = fmtSince(s.ts, now);
     });
+    featureTimeDisplays.forEach((el, key)=>{
+      if (!el) return;
+      const s = featureState.get(key);
+      if (!s || !s.ts) { el.textContent = '等待数据'; return; }
+      el.textContent = fmtSince(s.ts, now);
+    });
   }
   // 轻量 UI 刷新：仅更新文本与状态点，不追加网络请求
   setInterval(()=>{ updateStatus(); refreshCardTimes(); }, 1000);
@@ -1064,6 +1243,11 @@
   function ADDRRSafe(addr) { return typeof addr === 'string' ? addr.trim() : ''; }
   /** 统一格式化 USD 文案 */
   function fmtUSD(n){ return n==null ? '—' : '$' + n.toLocaleString(undefined,{maximumFractionDigits:2}); }
+  function fmtUSDWithSign(n){
+    if (n == null) return '—';
+    const absFmt = fmtUSD(Math.abs(n));
+    return (n >= 0 ? '+' : '-') + absFmt.slice(1);
+  }
   /** 输出带正负号的百分比 */
   function fmtPct(n){ return n==null ? '—' : ((n>=0?'+':'') + (n*100).toFixed(2) + '%'); }
   /**
