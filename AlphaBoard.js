@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Alpha Board（链上盈利数据展示/底部横排暂时/可隐藏/柔和玻璃）
 // @namespace    https://greasyfork.org/zh-CN/users/1211909-amazing-fish
-// @version      1.2.5
+// @version      1.2.6
 // @description  链上实时账户看板 · 默认最小化 · 按模型独立退避 · 轻量玻璃态 UI · 低饱和 P&L · 横排 6 卡片并展示相对更新时间
 // @match        *://*/*
 // @grant        GM_xmlhttpRequest
@@ -9,6 +9,7 @@
 // @grant        GM_setClipboard
 // @connect      api.hyperliquid.xyz
 // @connect      api.binance.com
+// @connect      data-asg.goldprice.org
 // @license      MIT
 // ==/UserScript==
 
@@ -26,7 +27,7 @@
   globalScope[INSTALL_FLAG] = true;
 
   /**
-   * Alpha Board 1.2.4.1
+   * Alpha Board 1.2.6
    * ------------------
    *  - 针对多模型地址的链上账户价值聚合看板
    *  - 以 Hyperliquid API 为数据源，独立退避拉取、无本地持久化
@@ -69,6 +70,14 @@
       badge: 'BTC',
       name: 'BTC · 实时价',
       source: '数据源 Binance',
+      fetcher: fetchBtcTicker,
+    },
+    {
+      key: 'xau',
+      badge: 'XAU',
+      name: '黄金 · 现货价',
+      source: '数据源 GoldPrice.org',
+      fetcher: fetchGoldPrice,
     },
   ];
 
@@ -83,6 +92,23 @@
   const WHEEL_ANIM_MAX_MS = 420;
   const WHEEL_ANIM_PX_RATIO = 0.45;
   const ACTIVATION_KEYS = new Set(['Enter', ' ']);
+
+  let cancelWheelAnimation = ()=>{};
+
+  const mqlReducedMotion = globalScope.matchMedia ? globalScope.matchMedia('(prefers-reduced-motion: reduce)') : null;
+  let REDUCED_MOTION = !!(mqlReducedMotion && mqlReducedMotion.matches);
+  if (mqlReducedMotion) {
+    const handleMotionChange = (ev)=>{
+      const next = !!(ev.matches ?? ev.currentTarget?.matches);
+      REDUCED_MOTION = next;
+      if (next) cancelWheelAnimation();
+    };
+    if (typeof mqlReducedMotion.addEventListener === 'function') {
+      mqlReducedMotion.addEventListener('change', handleMotionChange);
+    } else if (typeof mqlReducedMotion.addListener === 'function') {
+      mqlReducedMotion.addListener(handleMotionChange);
+    }
+  }
 
   /** ===== 玻璃态 + 透明度优化样式（更透、更克制） ===== */
   // 所有视觉样式集中在一处，方便微调颜色、透明度或布局。
@@ -606,11 +632,24 @@
   let wheelAnimDuration = WHEEL_ANIM_MIN_MS;
   let wheelAnimTarget = null;
 
+  cancelWheelAnimation = ()=>{
+    if (!wheelAnimTarget) return;
+    if (wheelAnimId) cancelAnimationFrame(wheelAnimId);
+    wheelAnimTarget.scrollLeft = wheelAnimTo;
+    wheelAnimId = 0;
+    wheelAnimTarget = null;
+  };
+
   function easeOutCubic(t){
     return 1 - Math.pow(1 - t, 3);
   }
 
   function beginWheelAnimation(target, to, distance){
+    if (REDUCED_MOTION) {
+      cancelWheelAnimation();
+      target.scrollLeft = to;
+      return;
+    }
     wheelAnimTarget = target;
     wheelAnimFrom = target.scrollLeft;
     wheelAnimTo = to;
@@ -847,6 +886,29 @@
     } catch { return null; }
   }
 
+  async function fetchGoldPrice(){
+    try {
+      const resp = await gmGetJson('https://data-asg.goldprice.org/dbXRates/USD');
+      const items = Array.isArray(resp?.items) ? resp.items : [];
+      const usd = items.find((item)=> item && item.curr === 'USD') || items[0];
+      const priceRaw = usd?.xauPrice;
+      const changeRaw = usd?.chgXau;
+      const pctRaw = usd?.pcXau;
+      const price = priceRaw == null ? NaN : parseFloat(priceRaw);
+      if (!Number.isFinite(price)) return null;
+      const change = changeRaw == null ? NaN : parseFloat(changeRaw);
+      const percent = pctRaw == null ? NaN : parseFloat(pctRaw);
+      const tsRaw = resp?.tsj ?? resp?.ts;
+      const ts = tsRaw == null ? NaN : Number(tsRaw);
+      return {
+        price,
+        change: Number.isFinite(change) ? change : null,
+        percent: Number.isFinite(percent) ? percent / 100 : null,
+        ts: Number.isFinite(ts) ? ts : Date.now(),
+      };
+    } catch { return null; }
+  }
+
   function tryUseSharedResult(canon, rec){
     if (!canon) return false;
     const payload = getFreshSharedResult(canon);
@@ -1033,36 +1095,40 @@
   // 为所有模型启动独立轮询
   MODELS.forEach(m => startPoller(m.key));
 
-  function startFeatureBtcPoller(){
-    if (!featureCardsByKey.has('btc')) return;
-    const key = 'btc';
-    let timer = null;
+  function startFeatureTickerPollers(){
+    FEATURE_CARDS.forEach((card)=>{
+      const { key, fetcher } = card;
+      if (!featureCardsByKey.has(key) || typeof fetcher !== 'function') return;
 
-    async function run(){
-      try {
-        const data = await fetchBtcTicker();
-        if (data) updateFeatureCard(key, data);
-        else {
+      let timer = null;
+
+      const run = async ()=>{
+        try {
+          const data = await fetcher();
+          if (data) {
+            updateFeatureCard(key, data);
+          } else {
+            const hadValue = !!(featureState.get(key)?.price != null);
+            updateFeatureCard(key, null, hadValue);
+          }
+        } catch {
           const hadValue = !!(featureState.get(key)?.price != null);
           updateFeatureCard(key, null, hadValue);
+        } finally {
+          scheduleNext();
         }
-      } catch {
-        const hadValue = !!(featureState.get(key)?.price != null);
-        updateFeatureCard(key, null, hadValue);
-      } finally {
-        scheduleNext();
-      }
-    }
+      };
 
-    function scheduleNext(){
-      clearTimeout(timer);
-      timer = setTimeout(run, FEATURE_REFRESH_MS);
-    }
+      const scheduleNext = ()=>{
+        clearTimeout(timer);
+        timer = setTimeout(run, FEATURE_REFRESH_MS);
+      };
 
-    run();
+      run();
+    });
   }
 
-  startFeatureBtcPoller();
+  startFeatureTickerPollers();
 
   /** ===== 渲染 ===== */
   /**
