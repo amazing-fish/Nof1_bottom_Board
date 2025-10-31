@@ -324,22 +324,6 @@
       visibility: hidden;
       transition: opacity .22s ease, transform .22s ease;
     }
-    .ab-feature-head { display:flex; flex-direction:column; gap:4px; }
-    .ab-feature-title {
-      font-size: 11.5px;
-      font-weight: 700;
-      letter-spacing: .35px;
-      text-transform: uppercase;
-      opacity: 0.92;
-      text-shadow: 0 0 10px rgba(0,0,0,0.26);
-    }
-    .ab-feature-desc {
-      font-size: 10.5px;
-      font-weight: 500;
-      color: #c6d0e0;
-      opacity: 0.9;
-      text-shadow: 0 0 8px rgba(0,0,0,0.24);
-    }
     #ab-feature-cards {
       display: flex;
       flex-wrap: wrap;
@@ -442,10 +426,6 @@
       <div id="ab-row-viewport">
         <div id="ab-row"></div>
         <div id="ab-overlay" role="region" aria-label="Alpha Board 扩展内容" aria-hidden="true">
-          <div class="ab-feature-head">
-            <div class="ab-feature-title">Alpha Board · 拓展实验室</div>
-            <div class="ab-feature-desc">实时工具轻量预览</div>
-          </div>
           <div id="ab-feature-cards"></div>
         </div>
       </div>
