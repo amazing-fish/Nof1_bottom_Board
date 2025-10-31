@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Alpha Board（链上盈利数据展示/底部横排暂时/可隐藏/柔和玻璃）
 // @namespace    https://greasyfork.org/zh-CN/users/1211909-amazing-fish
-// @version      1.2.5
+// @version      1.2.6
 // @description  链上实时账户看板 · 默认最小化 · 按模型独立退避 · 轻量玻璃态 UI · 低饱和 P&L · 横排 6 卡片并展示相对更新时间
 // @match        *://*/*
 // @grant        GM_xmlhttpRequest
@@ -9,6 +9,7 @@
 // @grant        GM_setClipboard
 // @connect      api.hyperliquid.xyz
 // @connect      api.binance.com
+// @connect      api.metals.live
 // @license      MIT
 // ==/UserScript==
 
@@ -26,7 +27,7 @@
   globalScope[INSTALL_FLAG] = true;
 
   /**
-   * Alpha Board 1.2.4.1
+   * Alpha Board 1.2.6
    * ------------------
    *  - 针对多模型地址的链上账户价值聚合看板
    *  - 以 Hyperliquid API 为数据源，独立退避拉取、无本地持久化
@@ -64,6 +65,12 @@
   ];
 
   const FEATURE_CARDS = [
+    {
+      key: 'gold',
+      badge: 'XAU',
+      name: '黄金 · 现货价',
+      source: '数据源 Metals.live',
+    },
     {
       key: 'btc',
       badge: 'BTC',
@@ -547,6 +554,16 @@
   setFeatureState(false);
   minimize();
 
+  document.addEventListener('keydown', (ev)=>{
+    if (ev.defaultPrevented) return;
+    if (ev.key !== 'Escape') return;
+    if (!COLLAPSED || FEATURE_EXPANDED) {
+      ev.preventDefault();
+      if (FEATURE_EXPANDED) setFeatureState(false);
+      if (!COLLAPSED) minimize();
+    }
+  }, { passive: false });
+
   let widthSyncPending = false;
   let lastWidthApplied = 0;
   function scheduleWidthSync(){
@@ -847,6 +864,26 @@
     } catch { return null; }
   }
 
+  async function fetchGoldSpot(){
+    try {
+      const resp = await gmGetJson('https://api.metals.live/v1/spot/gold');
+      const record = Array.isArray(resp) ? resp[0] : resp;
+      const priceRaw = record?.price ?? record?.ask ?? record?.value;
+      const price = priceRaw == null ? NaN : parseFloat(priceRaw);
+      if (!Number.isFinite(price)) return null;
+      const changeRaw = record?.change ?? record?.chg ?? record?.diff;
+      const percentRaw = record?.percent ?? record?.pc;
+      const change = changeRaw == null ? NaN : parseFloat(changeRaw);
+      const percent = percentRaw == null ? NaN : parseFloat(percentRaw);
+      return {
+        price,
+        change: Number.isFinite(change) ? change : null,
+        percent: Number.isFinite(percent) ? percent / 100 : null,
+        ts: Date.now(),
+      };
+    } catch { return null; }
+  }
+
   function tryUseSharedResult(canon, rec){
     if (!canon) return false;
     const payload = getFreshSharedResult(canon);
@@ -1033,21 +1070,21 @@
   // 为所有模型启动独立轮询
   MODELS.forEach(m => startPoller(m.key));
 
-  function startFeatureBtcPoller(){
-    if (!featureCardsByKey.has('btc')) return;
-    const key = 'btc';
+  function startFeaturePoller(key, fetcher){
+    if (!featureCardsByKey.has(key) || typeof fetcher !== 'function') return;
     let timer = null;
 
     async function run(){
       try {
-        const data = await fetchBtcTicker();
-        if (data) updateFeatureCard(key, data);
-        else {
-          const hadValue = !!(featureState.get(key)?.price != null);
+        const data = await fetcher();
+        if (data) {
+          updateFeatureCard(key, data);
+        } else {
+          const hadValue = featureState.get(key)?.price != null;
           updateFeatureCard(key, null, hadValue);
         }
       } catch {
-        const hadValue = !!(featureState.get(key)?.price != null);
+        const hadValue = featureState.get(key)?.price != null;
         updateFeatureCard(key, null, hadValue);
       } finally {
         scheduleNext();
@@ -1060,9 +1097,11 @@
     }
 
     run();
+    return () => clearTimeout(timer);
   }
 
-  startFeatureBtcPoller();
+  startFeaturePoller('gold', fetchGoldSpot);
+  startFeaturePoller('btc', fetchBtcTicker);
 
   /** ===== 渲染 ===== */
   /**
