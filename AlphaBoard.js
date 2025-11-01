@@ -293,13 +293,19 @@
       border-radius: var(--radius);
       transition: transform 220ms ease, box-shadow 220ms ease, background 160ms ease, border-color 160ms ease;
       will-change: transform;
-      box-shadow: none;
+      --hover-lift: 0px;
+      --flip-translate-x: 0px;
+      --flip-translate-y: 0px;
+      --card-shadow: 0 0 0 0 rgba(0,0,0,0);
+      --flash-shadow: 0 0 0 0 rgba(0,0,0,0);
+      transform: translate(var(--flip-translate-x, 0px), var(--flip-translate-y, 0px)) translateY(var(--hover-lift, 0px));
+      box-shadow: var(--card-shadow), var(--flash-shadow);
     }
     .ab-card:hover {
       background: linear-gradient(155deg, rgba(255,255,255,0.1), rgba(255,255,255,0.02));
       border-color: rgba(255,255,255,0.16);
-      box-shadow: 0 10px 24px rgba(0,0,0,0.26);
-      transform: translateY(-1px);
+      --card-shadow: 0 10px 24px rgba(0,0,0,0.26);
+      --hover-lift: -1px;
     }
 
     .ab-icon {
@@ -327,8 +333,8 @@
 
     /* 涨跌闪烁（进一步降低透明度与冲击感） */
     @media (prefers-reduced-motion: no-preference) {
-      .flash-up   { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--green) 18%, transparent); }
-      .flash-down { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--red)   18%, transparent); }
+      .flash-up   { --flash-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--green) 18%, transparent); }
+      .flash-down { --flash-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--red)   18%, transparent); }
     }
 
     #ab-feature-cards {
@@ -1175,10 +1181,13 @@
         const dx = first.left - last.left;
         const dy = first.top  - last.top;
         if (dx || dy) {
-          el.style.transform = `translate(${dx}px, ${dy}px)`;
+          el.style.transition = 'none';
+          el.style.setProperty('--flip-translate-x', `${dx}px`);
+          el.style.setProperty('--flip-translate-y', `${dy}px`);
           el.getBoundingClientRect();
           el.style.transition = 'transform 240ms ease';
-          el.style.transform = '';
+          el.style.setProperty('--flip-translate-x', '0px');
+          el.style.setProperty('--flip-translate-y', '0px');
           el.addEventListener('transitionend', ()=>{ el.style.transition=''; }, { once:true });
         }
       }
