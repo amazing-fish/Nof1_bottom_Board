@@ -323,38 +323,13 @@
       .flash-down { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--red)   18%, transparent); }
     }
 
-    #ab-overlay {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-      justify-content: flex-start;
-      gap: 14px;
-      z-index: 2;
-      padding: 16px 16px;
-      border-radius: 14px;
-      background:
-        linear-gradient(155deg, rgba(255,255,255,0.1), rgba(255,255,255,0.025)),
-        rgba(18,21,28,0.26);
-      border: 1px solid rgba(255,255,255,0.12);
-      box-shadow: 0 10px 24px rgba(0,0,0,0.22);
-      color: var(--text);
-      font-weight: 600;
-      letter-spacing: .25px;
-      text-align: left;
-      backdrop-filter: saturate(0.85) blur(3px);
-      opacity: 0;
-      pointer-events: none;
-      transform: scale(0.98);
-      visibility: hidden;
-      transition: opacity .22s ease, transform .22s ease;
-    }
     #ab-feature-cards {
-      display: flex;
+      display: none;
       flex-wrap: wrap;
       gap: var(--gap);
       width: 100%;
+      padding: 6px 10px 0 10px;
+      pointer-events: none;
     }
     #ab-feature-cards .ab-card {
       min-width: 168px;
@@ -367,15 +342,9 @@
       scrollbar-width: none;
     }
     #ab-dock.ab-feature-open #ab-row-viewport::-webkit-scrollbar { display: none; }
-    #ab-dock.ab-feature-open #ab-overlay {
-      position: relative;
-      inset: auto;
-      width: 100%;
-      height: auto;
-      opacity: 1;
+    #ab-dock.ab-feature-open #ab-feature-cards {
+      display: flex;
       pointer-events: auto;
-      transform: scale(1);
-      visibility: visible;
     }
     #ab-dock.ab-feature-open #ab-row {
       opacity: 0;
@@ -451,9 +420,12 @@
       </div>
       <div id="ab-row-viewport">
         <div id="ab-row"></div>
-        <div id="ab-overlay" role="region" aria-label="Alpha Board 扩展内容" aria-hidden="true">
-          <div id="ab-feature-cards"></div>
-        </div>
+        <div
+          id="ab-feature-cards"
+          role="region"
+          aria-label="Alpha Board 扩展内容"
+          aria-hidden="true"
+        ></div>
       </div>
       <div id="ab-toast" role="status" aria-live="polite"></div>
     </div>
@@ -466,7 +438,6 @@
   const toggle     = dock.querySelector('#ab-toggle');
   const title      = dock.querySelector('#ab-title');
   const expandBtn  = dock.querySelector('#ab-expand-btn');
-  const overlay    = dock.querySelector('#ab-overlay');
   const featureCardsContainer = dock.querySelector('#ab-feature-cards');
   const dot        = dock.querySelector('#ab-dot');
   const timeEl     = dock.querySelector('#ab-time');
@@ -554,7 +525,9 @@
       expandBtn.setAttribute('aria-expanded', FEATURE_EXPANDED ? 'true' : 'false');
       expandBtn.classList.toggle('expanded', FEATURE_EXPANDED);
     }
-    if (overlay) overlay.setAttribute('aria-hidden', FEATURE_EXPANDED ? 'false' : 'true');
+    if (featureCardsContainer) {
+      featureCardsContainer.setAttribute('aria-hidden', FEATURE_EXPANDED ? 'false' : 'true');
+    }
   }
   function toggleFeature(){ setFeatureState(!FEATURE_EXPANDED); }
   function attachPressHandlers(el, handler){
