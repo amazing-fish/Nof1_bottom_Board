@@ -257,14 +257,16 @@
       position: relative;
       overflow-x: auto;
       overflow-y: hidden;
-      scrollbar-width: thin;
+      scrollbar-width: none;
       scrollbar-color: rgba(255,255,255,0.16) transparent;
       width: 100%;
       max-width: min(96vw, var(--ab-target-width));
       padding: 0 10px 8px 10px;
       margin: 0;
     }
-    #ab-row-viewport::-webkit-scrollbar { height: 4px; }
+    #ab-row-viewport:hover { scrollbar-width: thin; }
+    #ab-row-viewport::-webkit-scrollbar { height: 0; }
+    #ab-row-viewport:hover::-webkit-scrollbar { height: 4px; }
     #ab-row-viewport::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.16); border-radius: 999px; }
 
     #ab-row {
