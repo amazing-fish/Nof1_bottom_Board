@@ -323,15 +323,14 @@
       .flash-down { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--red)   18%, transparent); }
     }
 
-    #ab-overlay {
+    #ab-feature-cards {
       position: absolute;
       inset: 0;
       display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-      justify-content: flex-start;
-      gap: 14px;
-      z-index: 2;
+      flex-wrap: wrap;
+      align-content: flex-start;
+      gap: var(--gap);
+      width: 100%;
       padding: 16px 16px;
       border-radius: 14px;
       background:
@@ -349,12 +348,7 @@
       transform: scale(0.98);
       visibility: hidden;
       transition: opacity .22s ease, transform .22s ease;
-    }
-    #ab-feature-cards {
-      display: flex;
-      flex-wrap: wrap;
-      gap: var(--gap);
-      width: 100%;
+      z-index: 2;
     }
     #ab-feature-cards .ab-card {
       min-width: 168px;
@@ -367,7 +361,7 @@
       scrollbar-width: none;
     }
     #ab-dock.ab-feature-open #ab-row-viewport::-webkit-scrollbar { display: none; }
-    #ab-dock.ab-feature-open #ab-overlay {
+    #ab-dock.ab-feature-open #ab-feature-cards {
       position: relative;
       inset: auto;
       width: 100%;
@@ -451,9 +445,12 @@
       </div>
       <div id="ab-row-viewport">
         <div id="ab-row"></div>
-        <div id="ab-overlay" role="region" aria-label="Alpha Board 扩展内容" aria-hidden="true">
-          <div id="ab-feature-cards"></div>
-        </div>
+        <div
+          id="ab-feature-cards"
+          role="region"
+          aria-label="Alpha Board 扩展内容"
+          aria-hidden="true"
+        ></div>
       </div>
       <div id="ab-toast" role="status" aria-live="polite"></div>
     </div>
@@ -466,7 +463,6 @@
   const toggle     = dock.querySelector('#ab-toggle');
   const title      = dock.querySelector('#ab-title');
   const expandBtn  = dock.querySelector('#ab-expand-btn');
-  const overlay    = dock.querySelector('#ab-overlay');
   const featureCardsContainer = dock.querySelector('#ab-feature-cards');
   const dot        = dock.querySelector('#ab-dot');
   const timeEl     = dock.querySelector('#ab-time');
@@ -554,7 +550,9 @@
       expandBtn.setAttribute('aria-expanded', FEATURE_EXPANDED ? 'true' : 'false');
       expandBtn.classList.toggle('expanded', FEATURE_EXPANDED);
     }
-    if (overlay) overlay.setAttribute('aria-hidden', FEATURE_EXPANDED ? 'false' : 'true');
+    if (featureCardsContainer) {
+      featureCardsContainer.setAttribute('aria-hidden', FEATURE_EXPANDED ? 'false' : 'true');
+    }
   }
   function toggleFeature(){ setFeatureState(!FEATURE_EXPANDED); }
   function attachPressHandlers(el, handler){
