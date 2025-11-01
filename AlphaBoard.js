@@ -327,10 +327,10 @@
       position: absolute;
       inset: 0;
       display: flex;
-      flex-direction: column;
-      align-items: flex-start;
+      flex-wrap: wrap;
+      align-items: stretch;
       justify-content: flex-start;
-      gap: 14px;
+      gap: var(--gap);
       z-index: 2;
       padding: 16px 16px;
       border-radius: 14px;
@@ -350,17 +350,11 @@
       visibility: hidden;
       transition: opacity .22s ease, transform .22s ease;
     }
-    #ab-feature-cards {
-      display: flex;
-      flex-wrap: wrap;
-      gap: var(--gap);
-      width: 100%;
-    }
-    #ab-feature-cards .ab-card {
+    #ab-overlay .ab-card {
       min-width: 168px;
       pointer-events: auto;
     }
-    #ab-feature-cards .ab-icon { cursor: default; }
+    #ab-overlay .ab-icon { cursor: default; }
     #ab-dock.ab-feature-open #ab-row-viewport {
       overflow: hidden;
       padding-bottom: 0;
@@ -451,9 +445,7 @@
       </div>
       <div id="ab-row-viewport">
         <div id="ab-row"></div>
-        <div id="ab-overlay" role="region" aria-label="Alpha Board 扩展内容" aria-hidden="true">
-          <div id="ab-feature-cards"></div>
-        </div>
+        <div id="ab-overlay" role="region" aria-label="Alpha Board 扩展内容" aria-hidden="true"></div>
       </div>
       <div id="ab-toast" role="status" aria-live="polite"></div>
     </div>
@@ -467,7 +459,6 @@
   const title      = dock.querySelector('#ab-title');
   const expandBtn  = dock.querySelector('#ab-expand-btn');
   const overlay    = dock.querySelector('#ab-overlay');
-  const featureCardsContainer = dock.querySelector('#ab-feature-cards');
   const dot        = dock.querySelector('#ab-dot');
   const timeEl     = dock.querySelector('#ab-time');
   const toast      = dock.querySelector('#ab-toast');
@@ -478,7 +469,7 @@
   const featureLastValueMap = new Map();
   const featureMetaByKey = new Map();
 
-  if (featureCardsContainer) {
+  if (overlay) {
     FEATURE_CARDS.forEach((item) => {
       const card = document.createElement('div');
       card.className = 'ab-card ab-feature-card';
@@ -494,7 +485,7 @@
           <div class="ab-sub">${item.source || ''}</div>
         </div>
       `;
-      featureCardsContainer.appendChild(card);
+      overlay.appendChild(card);
       featureCardsByKey.set(item.key, card);
       featureTimeDisplays.set(item.key, card.querySelector('.ab-time'));
       featureState.set(item.key, { price: null, change: null, percent: null, ts: 0 });
