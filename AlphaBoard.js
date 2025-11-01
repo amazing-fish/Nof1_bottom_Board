@@ -296,10 +296,10 @@
       --hover-lift: 0px;
       --flip-translate-x: 0px;
       --flip-translate-y: 0px;
-      --card-shadow: none;
-      --flash-shadow: none;
+      --card-shadow: 0 0 0 0 rgba(0,0,0,0);
+      --flash-shadow: 0 0 0 0 rgba(0,0,0,0);
       transform: translate(var(--flip-translate-x, 0px), var(--flip-translate-y, 0px)) translateY(var(--hover-lift, 0px));
-      box-shadow: var(--card-shadow, none), var(--flash-shadow, none);
+      box-shadow: var(--card-shadow), var(--flash-shadow);
     }
     .ab-card:hover {
       background: linear-gradient(155deg, rgba(255,255,255,0.1), rgba(255,255,255,0.02));
