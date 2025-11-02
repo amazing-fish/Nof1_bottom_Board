@@ -1,5 +1,7 @@
 # Alpha Board 1.2.6
 
+Alpha Board 是一款自用摸鱼脚本，无修改配置需求，注重隐蔽性。
+
 Alpha Board 是一个专为多模型交易地址打造的链上账户价值看板，通过浏览器脚本的形式提供轻量、可常驻的实时监控界面。本仓库提供可直接导入 Tampermonkey、Violentmonkey 等油猴扩展的 `AlphaBoard.js` 脚本，默认展示 6 个AI模型的 Hyperliquid 账户表现。
 
 <img width="1148" height="254" alt="image" src="https://github.com/user-attachments/assets/6d874159-b74a-4a67-88a1-aeb839cda6df" />
