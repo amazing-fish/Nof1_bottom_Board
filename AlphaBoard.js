@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Alpha Board（链上盈利数据展示/底部横排暂时/可隐藏/柔和玻璃）
 // @namespace    https://greasyfork.org/zh-CN/users/1211909-amazing-fish
-// @version      1.5.0
+// @version      1.5.1
 // @description  链上实时账户看板 · 默认最小化 · 按模型独立退避 · 轻量玻璃态 UI · 低饱和 P&L · 横排 6 卡片并展示相对更新时间
 // @match        *://*/*
 // @grant        GM_xmlhttpRequest
@@ -26,7 +26,7 @@
   globalScope[INSTALL_FLAG] = true;
 
   /**
-   * Alpha Board 1.5.0
+   * Alpha Board 1.5.1
    * ------------------
    *  - 针对多模型地址的链上账户价值聚合看板
    *  - 以 Hyperliquid API 为数据源，独立退避拉取、无本地持久化
@@ -172,10 +172,7 @@
     #ab-wrap {
       pointer-events: auto;
       display: none;
-      background:
-        linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.008)) ,
-        radial-gradient(140% 160% at 0% 100%, rgba(96,165,250,0.05), transparent 60%) ,
-        var(--bg);
+      background: transparent;
       border: 1px solid rgba(255,255,255,0.09);
       border-radius: 16px;
       padding: 6px 10px 8px;
@@ -1317,16 +1314,16 @@
 
   document.addEventListener('visibilitychange', ()=>{
     if (!isTabForeground()) return;
+    if (!COLLAPSED) minimize();
+    if (FEATURE_EXPANDED) setFeatureState(false);
     pollers.forEach((rec)=>{
       clearTimeout(rec.timer);
       rec.timer = setTimeout(rec.run, 0);
     });
-    if (FEATURE_EXPANDED) {
-      featurePollers.forEach((rec)=>{
-        clearTimeout(rec.timer);
-        rec.timer = setTimeout(rec.run, 0);
-      });
-    }
+    featurePollers.forEach((rec)=>{
+      clearTimeout(rec.timer);
+      rec.timer = setTimeout(rec.run, 0);
+    });
     updateStatus();
     refreshCardTimes();
   });
