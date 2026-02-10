@@ -1,5 +1,6 @@
 # 审计日志（倒序）
 
+- 2026-02-10 bugfix v1.3.1：次面板在收起时停止轮询与时间刷新，展开时立即补偿刷新；移除标题“币对主面板”文案；涉及 `AlphaBoard.js`、`ANCHOR.md`、`docs/audit.log`；测试命令 `node --check AlphaBoard.js`，结论：通过。
 - 2026-02-10 修复 review 指出的主次面板回归：`updateCard` 重排时改为写回 `#ab-feature-cards`，避免链上模型卡被搬回主面板；涉及 `AlphaBoard.js`、`ANCHOR.md`、`docs/audit.log`；测试命令 `node --check AlphaBoard.js`，结论：通过。
 - 2026-02-10 feature v1.3.0：主次面板重构（币对改为主面板、链上多地址改为次面板），并增加“仅前台标签页实时更新”门控与回前台即刻补偿刷新；涉及 `AlphaBoard.js`、`ANCHOR.md`；测试命令 `node --check AlphaBoard.js`，结论：通过。
 - 2025-11-02 更新 README，补充“自用摸鱼脚本，无修改配置需求，注重隐蔽性”描述；未执行测试（文档改动）。

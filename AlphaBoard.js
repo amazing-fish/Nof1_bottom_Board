@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Alpha Board（链上盈利数据展示/底部横排暂时/可隐藏/柔和玻璃）
 // @namespace    https://greasyfork.org/zh-CN/users/1211909-amazing-fish
-// @version      1.3.0
+// @version      1.3.1
 // @description  链上实时账户看板 · 默认最小化 · 按模型独立退避 · 轻量玻璃态 UI · 低饱和 P&L · 横排 6 卡片并展示相对更新时间
 // @match        *://*/*
 // @grant        GM_xmlhttpRequest
@@ -27,7 +27,7 @@
   globalScope[INSTALL_FLAG] = true;
 
   /**
-   * Alpha Board 1.3.0
+   * Alpha Board 1.3.1
    * ------------------
    *  - 针对多模型地址的链上账户价值聚合看板
    *  - 以 Hyperliquid API 为数据源，独立退避拉取、无本地持久化
@@ -387,7 +387,7 @@
     <div id="ab-wrap" role="region" aria-label="Alpha Board 实时看板">
       <div id="ab-topbar">
         <div id="ab-left">
-          <span id="ab-title" title="点击最小化">Alpha Board · 币对主面板</span>
+          <span id="ab-title" title="点击最小化">Alpha Board</span>
           <div id="ab-status" aria-live="polite">
             <span class="ab-dot" id="ab-dot"></span>
             <span id="ab-time">Syncing…</span>
@@ -529,6 +529,13 @@
     }
     if (featureCardsContainer) {
       featureCardsContainer.setAttribute('aria-hidden', FEATURE_EXPANDED ? 'false' : 'true');
+    }
+    if (FEATURE_EXPANDED) {
+      featurePollers.forEach((rec)=>{
+        if (!rec?.run) return;
+        clearTimeout(rec.timer);
+        rec.timer = setTimeout(rec.run, 0);
+      });
     }
   }
   function toggleFeature(){ setFeatureState(!FEATURE_EXPANDED); }
@@ -1089,7 +1096,7 @@
       featurePollers.set(key, rec);
 
       const run = async ()=>{
-        if (!isTabForeground()) {
+        if (!isTabForeground() || !FEATURE_EXPANDED) {
           scheduleNext(BACKGROUND_WAIT_MS);
           return;
         }
@@ -1287,12 +1294,14 @@
       if (!s.ts) { el.textContent = '等待数据'; return; }
       el.textContent = fmtSince(s.ts, now);
     });
-    featureTimeDisplays.forEach((el, key)=>{
-      if (!el) return;
-      const s = featureState.get(key);
-      if (!s || !s.ts) { el.textContent = '等待数据'; return; }
-      el.textContent = fmtSince(s.ts, now);
-    });
+    if (FEATURE_EXPANDED) {
+      featureTimeDisplays.forEach((el, key)=>{
+        if (!el) return;
+        const s = featureState.get(key);
+        if (!s || !s.ts) { el.textContent = '等待数据'; return; }
+        el.textContent = fmtSince(s.ts, now);
+      });
+    }
   }
   // 轻量 UI 刷新：仅更新文本与状态点，不追加网络请求
   setInterval(()=>{
@@ -1307,10 +1316,12 @@
       clearTimeout(rec.timer);
       rec.timer = setTimeout(rec.run, 0);
     });
-    featurePollers.forEach((rec)=>{
-      clearTimeout(rec.timer);
-      rec.timer = setTimeout(rec.run, 0);
-    });
+    if (FEATURE_EXPANDED) {
+      featurePollers.forEach((rec)=>{
+        clearTimeout(rec.timer);
+        rec.timer = setTimeout(rec.run, 0);
+      });
+    }
     updateStatus();
     refreshCardTimes();
   });
