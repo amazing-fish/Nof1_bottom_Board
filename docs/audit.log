@@ -1,6 +1,4 @@
 # 审计日志（倒序）
-- 2026-02-10 bugfix v1.5.1：背景容器改为纯透明；浏览器标签页切回前台时自动折叠主面板与次面板，并继续触发主次轮询补偿刷新；涉及 `AlphaBoard.js`、`ANCHOR.md`、`docs/audit.log`；测试命令 `node --check AlphaBoard.js`，结论：通过。
-
 - 2026-02-10 feature v1.5.0：新增 `AXSUSDT` 永续行情卡；折叠态入口去掉“Alpha Board”标题并改为状态灯极简显示（与顶栏状态同步）；涉及 `AlphaBoard.js`、`ANCHOR.md`、`docs/audit.log`；测试命令 `node --check AlphaBoard.js`，结论：通过。
 
 - 2026-02-10 feature v1.4.0：主面板 BTC/XAU 行情切换为 USDT 永续合约（Binance Futures），新增统一永续行情抓取函数并移除黄金现货接口依赖；涉及 `AlphaBoard.js`、`ANCHOR.md`、`docs/audit.log`；测试命令 `node --check AlphaBoard.js`，结论：通过。
