@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Alpha Board（链上盈利数据展示/底部横排暂时/可隐藏/柔和玻璃）
 // @namespace    https://greasyfork.org/zh-CN/users/1211909-amazing-fish
-// @version      1.2.6
+// @version      1.3.0
 // @description  链上实时账户看板 · 默认最小化 · 按模型独立退避 · 轻量玻璃态 UI · 低饱和 P&L · 横排 6 卡片并展示相对更新时间
 // @match        *://*/*
 // @grant        GM_xmlhttpRequest
@@ -27,7 +27,7 @@
   globalScope[INSTALL_FLAG] = true;
 
   /**
-   * Alpha Board 1.2.6
+   * Alpha Board 1.3.0
    * ------------------
    *  - 针对多模型地址的链上账户价值聚合看板
    *  - 以 Hyperliquid API 为数据源，独立退避拉取、无本地持久化
@@ -82,6 +82,7 @@
   ];
 
   const FEATURE_REFRESH_MS = 6000;
+  const BACKGROUND_WAIT_MS = 2000;
 
   const VISIBLE_CARD_COUNT = 4;
   const WIDTH_EXTRA_PX = 80;
@@ -342,7 +343,7 @@
       flex-wrap: wrap;
       gap: var(--gap);
       width: 100%;
-      padding: 6px 10px 0 10px;
+      padding: 6px 10px 2px 10px;
       pointer-events: none;
     }
     #ab-feature-cards .ab-card {
@@ -350,20 +351,9 @@
       pointer-events: auto;
     }
     #ab-feature-cards .ab-icon { cursor: default; }
-    #ab-dock.ab-feature-open #ab-row-viewport {
-      overflow: hidden;
-      padding-bottom: 0;
-      scrollbar-width: none;
-    }
-    #ab-dock.ab-feature-open #ab-row-viewport::-webkit-scrollbar { display: none; }
     #ab-dock.ab-feature-open #ab-feature-cards {
       display: flex;
       pointer-events: auto;
-    }
-    #ab-dock.ab-feature-open #ab-row {
-      opacity: 0;
-      pointer-events: none;
-      display: none;
     }
 
     /* 骨架占位 */
@@ -397,7 +387,7 @@
     <div id="ab-wrap" role="region" aria-label="Alpha Board 实时看板">
       <div id="ab-topbar">
         <div id="ab-left">
-          <span id="ab-title" title="点击最小化">Alpha Board · 链上实时</span>
+          <span id="ab-title" title="点击最小化">Alpha Board · 币对主面板</span>
           <div id="ab-status" aria-live="polite">
             <span class="ab-dot" id="ab-dot"></span>
             <span id="ab-time">Syncing…</span>
@@ -407,9 +397,9 @@
           <button
             id="ab-expand-btn"
             type="button"
-            aria-label="展开扩展内容"
+            aria-label="展开次面板"
             aria-expanded="false"
-            title="展开扩展内容"
+            title="展开次面板"
           >
             <svg viewBox="0 0 16 16" aria-hidden="true">
               <path d="M4.25 6.25L8 10l3.75-3.75" />
@@ -437,7 +427,7 @@
         <div
           id="ab-feature-cards"
           role="region"
-          aria-label="Alpha Board 扩展内容"
+          aria-label="Alpha Board 链上次面板"
           aria-hidden="true"
         ></div>
       </div>
@@ -463,8 +453,7 @@
   const featureLastValueMap = new Map();
   const featureMetaByKey = new Map();
 
-  if (featureCardsContainer) {
-    FEATURE_CARDS.forEach((item) => {
+  FEATURE_CARDS.forEach((item) => {
       const card = document.createElement('div');
       card.className = 'ab-card ab-feature-card';
       card.setAttribute('data-key', item.key);
@@ -479,13 +468,12 @@
           <div class="ab-sub">${item.source || ''}</div>
         </div>
       `;
-      featureCardsContainer.appendChild(card);
+      row.appendChild(card);
       featureCardsByKey.set(item.key, card);
       featureTimeDisplays.set(item.key, card.querySelector('.ab-time'));
       featureState.set(item.key, { price: null, change: null, percent: null, ts: 0 });
       featureMetaByKey.set(item.key, item);
-    });
-  }
+  });
 
   // 展开/收起（默认最小化）
   toggle.setAttribute('role', 'button');
@@ -519,8 +507,8 @@
     const nextExpanded = !!next;
     if (viewport) {
       if (nextExpanded) {
-        const rect = viewport.getBoundingClientRect();
-        const measured = rect.height || viewport.scrollHeight;
+        const rect = featureCardsContainer ? featureCardsContainer.getBoundingClientRect() : viewport.getBoundingClientRect();
+        const measured = rect.height || featureCardsContainer?.scrollHeight || viewport.scrollHeight;
         if (measured) {
           viewport.style.minHeight = `${measured}px`;
         } else {
@@ -533,7 +521,7 @@
     FEATURE_EXPANDED = nextExpanded;
     dock.classList.toggle('ab-feature-open', FEATURE_EXPANDED);
     if (expandBtn) {
-      const label = FEATURE_EXPANDED ? '收起扩展内容' : '展开扩展内容';
+      const label = FEATURE_EXPANDED ? '收起次面板' : '展开次面板';
       expandBtn.setAttribute('aria-label', label);
       expandBtn.setAttribute('title', label);
       expandBtn.setAttribute('aria-expanded', FEATURE_EXPANDED ? 'true' : 'false');
@@ -728,7 +716,7 @@
         <div class="ab-sub"><span class="skeleton" style="width:80px;"></span></div>
       </div>
     `;
-    row.appendChild(card);
+    featureCardsContainer.appendChild(card);
     cardsByKey.set(m.key, card);
 
     // 初始状态：为每张卡片记住地址和时间显示节点
@@ -994,10 +982,11 @@
     if (prev && prev.ts >= payload.ts) return;
     sharedResultCache.set(canon, payload);
 
-    if (payload.success) {
-      seenAnySuccess = true;
-      lastGlobalSuccess = Math.max(lastGlobalSuccess, payload.ts);
-      const keys = addrSubscribers.get(canon);
+      if (payload.success) {
+        seenAnySuccess = true;
+        lastGlobalSuccess = Math.max(lastGlobalSuccess, payload.ts);
+        if (!isTabForeground()) return;
+        const keys = addrSubscribers.get(canon);
       if (keys) {
         keys.forEach(key=>{
           if (state.has(key)) updateCard(key, payload.value, payload.ts);
@@ -1008,7 +997,7 @@
   }
 
   /** ===== 按模型独立轮询 + 失败退避 ===== */
-  const pollers = new Map(); // key -> { step, timer }
+  const pollers = new Map(); // key -> { step, timer, run }
 
   /**
    * 为指定模型启动独立轮询：成功时重置退避，失败时升级退避。
@@ -1019,6 +1008,11 @@
     pollers.set(mkey, rec);
 
     const run = async () => {
+      if (!isTabForeground()) {
+        scheduleNext(BACKGROUND_WAIT_MS);
+        return;
+      }
+
       const s = state.get(mkey);
       const addr = s.addr;
       const canon = s.addrCanon || canonAddress(addr);
@@ -1076,20 +1070,29 @@
       rec.timer = setTimeout(run, Math.max(0, base + jitter));
     }
 
+    rec.run = run;
+
     scheduleNext();
   }
 
   // 为所有模型启动独立轮询
   MODELS.forEach(m => startPoller(m.key));
 
+  const featurePollers = new Map();
+
   function startFeatureTickerPollers(){
     FEATURE_CARDS.forEach((card)=>{
       const { key, fetcher } = card;
       if (!featureCardsByKey.has(key) || typeof fetcher !== 'function') return;
 
-      let timer = null;
+      const rec = { timer: null, run: null };
+      featurePollers.set(key, rec);
 
       const run = async ()=>{
+        if (!isTabForeground()) {
+          scheduleNext(BACKGROUND_WAIT_MS);
+          return;
+        }
         try {
           const data = await fetcher();
           if (data) {
@@ -1107,9 +1110,11 @@
       };
 
       const scheduleNext = ()=>{
-        clearTimeout(timer);
-        timer = setTimeout(run, FEATURE_REFRESH_MS);
+        clearTimeout(rec.timer);
+        rec.timer = setTimeout(run, FEATURE_REFRESH_MS);
       };
+
+      rec.run = run;
 
       run();
     });
@@ -1171,7 +1176,7 @@
       const key = el.getAttribute('data-key');
       lastRects.set(key, firstRects.get(key));
     });
-    els.forEach((el)=> row.appendChild(el));
+    els.forEach((el)=> featureCardsContainer.appendChild(el));
 
     els.forEach(el=>{
       const key = el.getAttribute('data-key');
@@ -1290,7 +1295,29 @@
     });
   }
   // 轻量 UI 刷新：仅更新文本与状态点，不追加网络请求
-  setInterval(()=>{ updateStatus(); refreshCardTimes(); }, 1000);
+  setInterval(()=>{
+    if (!isTabForeground()) return;
+    updateStatus();
+    refreshCardTimes();
+  }, 1000);
+
+  document.addEventListener('visibilitychange', ()=>{
+    if (!isTabForeground()) return;
+    pollers.forEach((rec)=>{
+      clearTimeout(rec.timer);
+      rec.timer = setTimeout(rec.run, 0);
+    });
+    featurePollers.forEach((rec)=>{
+      clearTimeout(rec.timer);
+      rec.timer = setTimeout(rec.run, 0);
+    });
+    updateStatus();
+    refreshCardTimes();
+  });
+
+  function isTabForeground(){
+    return document.visibilityState === 'visible';
+  }
 
   /** ===== 工具函数 ===== */
   function canonAddress(addr){ return typeof addr === 'string' ? addr.trim().toLowerCase() : ''; }
