@@ -1096,7 +1096,7 @@
       featurePollers.set(key, rec);
 
       const run = async ()=>{
-        if (!isTabForeground() || !FEATURE_EXPANDED) {
+        if (!isTabForeground()) {
           scheduleNext(BACKGROUND_WAIT_MS);
           return;
         }
