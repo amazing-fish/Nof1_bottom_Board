@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Alpha Board（链上盈利数据展示/底部横排暂时/可隐藏/柔和玻璃）
 // @namespace    https://greasyfork.org/zh-CN/users/1211909-amazing-fish
-// @version      1.4.0
+// @version      1.5.0
 // @description  链上实时账户看板 · 默认最小化 · 按模型独立退避 · 轻量玻璃态 UI · 低饱和 P&L · 横排 6 卡片并展示相对更新时间
 // @match        *://*/*
 // @grant        GM_xmlhttpRequest
@@ -26,7 +26,7 @@
   globalScope[INSTALL_FLAG] = true;
 
   /**
-   * Alpha Board 1.4.0
+   * Alpha Board 1.5.0
    * ------------------
    *  - 针对多模型地址的链上账户价值聚合看板
    *  - 以 Hyperliquid API 为数据源，独立退避拉取、无本地持久化
@@ -77,6 +77,13 @@
       name: 'XAUUSDT · 永续',
       source: '数据源 Binance Futures',
       fetcher: fetchXauPerpTicker,
+    },
+    {
+      key: 'axs',
+      badge: 'AXS',
+      name: 'AXSUSDT · 永续',
+      source: '数据源 Binance Futures',
+      fetcher: fetchAxsPerpTicker,
     },
   ];
 
@@ -145,7 +152,11 @@
       pointer-events: auto;
       display: inline-flex;
       align-items:center; gap:6px;
-      padding:5px 9px; border-radius:11px;
+      justify-content: center;
+      width: 30px;
+      height: 30px;
+      padding:0;
+      border-radius:999px;
       background: rgba(18,21,28,0.24);
       border:1px solid rgba(255,255,255,0.10); color:var(--text); font-weight:600; font-size:11px; letter-spacing:.3px;
       box-shadow: 0 6px 16px rgba(0,0,0,0.22);
@@ -154,6 +165,8 @@
       transition: background .2s ease, border-color .2s ease, transform .15s ease;
     }
     #ab-toggle:hover { background: rgba(22,25,34,0.32); border-color: rgba(255,255,255,0.16); transform: translateY(-1px); }
+
+
 
     /* 面板主体：更透、少 blur、少 saturate */
     #ab-wrap {
@@ -382,7 +395,9 @@
   const dock = document.createElement('div');
   dock.id = 'ab-dock';
   dock.innerHTML = `
-    <div id="ab-toggle" title="展开 Alpha Board">Alpha Board</div>
+    <div id="ab-toggle" title="展开 Alpha Board" aria-label="展开 Alpha Board（状态灯）">
+      <span class="ab-dot ab-dead" id="ab-toggle-dot" aria-hidden="true"></span>
+    </div>
     <div id="ab-wrap" role="region" aria-label="Alpha Board 实时看板">
       <div id="ab-topbar">
         <div id="ab-left">
@@ -443,6 +458,7 @@
   const expandBtn  = dock.querySelector('#ab-expand-btn');
   const featureCardsContainer = dock.querySelector('#ab-feature-cards');
   const dot        = dock.querySelector('#ab-dot');
+  const toggleDot  = dock.querySelector('#ab-toggle-dot');
   const timeEl     = dock.querySelector('#ab-time');
   const toast      = dock.querySelector('#ab-toast');
 
@@ -875,6 +891,10 @@
     return fetchPerpTicker('XAUUSDT');
   }
 
+  async function fetchAxsPerpTicker(){
+    return fetchPerpTicker('AXSUSDT');
+  }
+
   function tryUseSharedResult(canon, rec){
     if (!canon) return false;
     const payload = getFreshSharedResult(canon);
@@ -1258,11 +1278,14 @@
     const now = Date.now();
     if (!seenAnySuccess) {
       dot.className = 'ab-dot ab-dead';
+      if (toggleDot) toggleDot.className = 'ab-dot ab-dead';
       timeEl.textContent = 'No data';
       return;
     }
     const stale = (now - lastGlobalSuccess) > FRESH_THRESH_MS;
-    dot.className = 'ab-dot ' + (stale ? 'ab-warn' : 'ab-live');
+    const statusClass = stale ? 'ab-warn' : 'ab-live';
+    dot.className = 'ab-dot ' + statusClass;
+    if (toggleDot) toggleDot.className = 'ab-dot ' + statusClass;
     timeEl.textContent = (stale ? 'Stale' : ('更新 ' + fmtTime(now)));
   }
   /**
