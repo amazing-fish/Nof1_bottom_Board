@@ -1176,7 +1176,7 @@
       const key = el.getAttribute('data-key');
       lastRects.set(key, firstRects.get(key));
     });
-    els.forEach((el)=> row.appendChild(el));
+    els.forEach((el)=> featureCardsContainer.appendChild(el));
 
     els.forEach(el=>{
       const key = el.getAttribute('data-key');
