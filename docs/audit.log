@@ -1,4 +1,5 @@
 # 审计日志（倒序）
+- 2026-02-10 bugfix v1.3.2：修复主面板币对更新时间在次面板收起时不刷新的问题，移除相对时间刷新对 `FEATURE_EXPANDED` 的门控；涉及 `AlphaBoard.js`、`ANCHOR.md`、`docs/audit.log`；测试命令 `node --check AlphaBoard.js`，结论：通过。
 
 - 2026-02-10 修复 review P1：移除主面板 ticker 轮询中的 `FEATURE_EXPANDED` 门控，恢复次面板收起时 BTC/XAU 持续更新；涉及 `AlphaBoard.js`、`ANCHOR.md`、`docs/audit.log`；测试命令 `node --check AlphaBoard.js`，结论：通过。
 - 2026-02-10 bugfix v1.3.1：次面板在收起时停止轮询与时间刷新，展开时立即补偿刷新；移除标题“币对主面板”文案；涉及 `AlphaBoard.js`、`ANCHOR.md`、`docs/audit.log`；测试命令 `node --check AlphaBoard.js`，结论：通过。
