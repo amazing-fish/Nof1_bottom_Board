@@ -1,15 +1,14 @@
 // ==UserScript==
 // @name         Alpha Board（链上盈利数据展示/底部横排暂时/可隐藏/柔和玻璃）
 // @namespace    https://greasyfork.org/zh-CN/users/1211909-amazing-fish
-// @version      1.3.2
+// @version      1.4.0
 // @description  链上实时账户看板 · 默认最小化 · 按模型独立退避 · 轻量玻璃态 UI · 低饱和 P&L · 横排 6 卡片并展示相对更新时间
 // @match        *://*/*
 // @grant        GM_xmlhttpRequest
 // @grant        GM_addStyle
 // @grant        GM_setClipboard
 // @connect      api.hyperliquid.xyz
-// @connect      api.binance.com
-// @connect      data-asg.goldprice.org
+// @connect      fapi.binance.com
 // @license      MIT
 // ==/UserScript==
 
@@ -27,7 +26,7 @@
   globalScope[INSTALL_FLAG] = true;
 
   /**
-   * Alpha Board 1.3.2
+   * Alpha Board 1.4.0
    * ------------------
    *  - 针对多模型地址的链上账户价值聚合看板
    *  - 以 Hyperliquid API 为数据源，独立退避拉取、无本地持久化
@@ -68,16 +67,16 @@
     {
       key: 'btc',
       badge: 'BTC',
-      name: 'BTC · 实时价',
-      source: '数据源 Binance',
-      fetcher: fetchBtcTicker,
+      name: 'BTCUSDT · 永续',
+      source: '数据源 Binance Futures',
+      fetcher: fetchBtcPerpTicker,
     },
     {
       key: 'xau',
       badge: 'XAU',
-      name: '黄金 · 现货价',
-      source: '数据源 GoldPrice.org',
-      fetcher: fetchGoldPrice,
+      name: 'XAUUSDT · 永续',
+      source: '数据源 Binance Futures',
+      fetcher: fetchXauPerpTicker,
     },
   ];
 
@@ -849,9 +848,9 @@
     } catch { return null; }
   }
 
-  async function fetchBtcTicker(){
+  async function fetchPerpTicker(symbol){
     try {
-      const resp = await gmGetJson('https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT');
+      const resp = await gmGetJson(`https://fapi.binance.com/fapi/v1/ticker/24hr?symbol=${encodeURIComponent(symbol)}`);
       const priceRaw = resp?.lastPrice ?? resp?.weightedAvgPrice ?? resp?.price;
       const changeRaw = resp?.priceChange;
       const pctRaw = resp?.priceChangePercent;
@@ -868,27 +867,12 @@
     } catch { return null; }
   }
 
-  async function fetchGoldPrice(){
-    try {
-      const resp = await gmGetJson('https://data-asg.goldprice.org/dbXRates/USD');
-      const items = Array.isArray(resp?.items) ? resp.items : [];
-      const usd = items.find((item)=> item && item.curr === 'USD') || items[0];
-      const priceRaw = usd?.xauPrice;
-      const changeRaw = usd?.chgXau;
-      const pctRaw = usd?.pcXau;
-      const price = priceRaw == null ? NaN : parseFloat(priceRaw);
-      if (!Number.isFinite(price)) return null;
-      const change = changeRaw == null ? NaN : parseFloat(changeRaw);
-      const percent = pctRaw == null ? NaN : parseFloat(pctRaw);
-      const tsRaw = resp?.tsj ?? resp?.ts;
-      const ts = tsRaw == null ? NaN : Number(tsRaw);
-      return {
-        price,
-        change: Number.isFinite(change) ? change : null,
-        percent: Number.isFinite(percent) ? percent / 100 : null,
-        ts: Number.isFinite(ts) ? ts : Date.now(),
-      };
-    } catch { return null; }
+  async function fetchBtcPerpTicker(){
+    return fetchPerpTicker('BTCUSDT');
+  }
+
+  async function fetchXauPerpTicker(){
+    return fetchPerpTicker('XAUUSDT');
   }
 
   function tryUseSharedResult(canon, rec){
