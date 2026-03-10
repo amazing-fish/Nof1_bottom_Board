@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Alpha Board（链上盈利数据展示/底部横排暂时/可隐藏/柔和玻璃）
 // @namespace    https://greasyfork.org/zh-CN/users/1211909-amazing-fish
-// @version      1.5.1
+// @version      1.5.2
 // @description  链上实时账户看板 · 默认最小化 · 按模型独立退避 · 轻量玻璃态 UI · 低饱和 P&L · 横排 6 卡片并展示相对更新时间
 // @match        *://*/*
 // @grant        GM_xmlhttpRequest
@@ -26,10 +26,13 @@
   globalScope[INSTALL_FLAG] = true;
 
   /**
-   * Alpha Board 1.5.1
+   * Alpha Board 1.5.2
    * ------------------
-   *  - 针对多模型地址的链上账户价值聚合看板
-   *  - 以 Hyperliquid API 为数据源，独立退避拉取、无本地持久化
+   *  - 主面板展示行情卡片（BTC / XAU / AXS）
+   *  - 次面板展示多模型链上账户价值
+   *  - Hyperliquid 地址轮询：独立退避 + 共享缓存/锁 + 无本地配置持久化
+   *  - 行情轮询：折叠态降频，展开主面板后立即刷新
+   *  - 隐藏次面板时仅更新数据，不执行 FLIP 动画，减少无效布局计算
    *  - 默认最小化，支持标题点击折叠，卡片横向排列并带相对时间
    *  - 鼠标滚轮上下滑动可驱动卡片横向滑动，并带缓动动画
    *  - 轻量玻璃态视觉 + 低饱和红/绿提示，适合常驻屏幕
@@ -53,7 +56,7 @@
     'Qwen3-Max': '0x7a8fd8bba33e37361ca6b0cb4518a44681bad2f3'
   };
 
-  // 模型清单，用于确定卡片顺序与徽章缩写
+  // 模型清单：用于次面板账户卡片顺序与徽章缩写
   const MODELS = [
     { key: 'GPT-5', badge: 'GPT' },
     { key: 'Gemini 2.5 Pro', badge: 'GEM' },
@@ -63,6 +66,7 @@
     { key: 'Qwen3-Max', badge: 'QWN' },
   ];
 
+  // 主面板行情卡片
   const FEATURE_CARDS = [
     {
       key: 'btc',
@@ -88,6 +92,7 @@
   ];
 
   const FEATURE_REFRESH_MS = 6000;
+  const FEATURE_COLLAPSED_REFRESH_MS = 20000; // 折叠态降频
   const BACKGROUND_WAIT_MS = 2000;
 
   const VISIBLE_CARD_COUNT = 4;
@@ -101,6 +106,7 @@
   const ACTIVATION_KEYS = new Set(['Enter', ' ']);
 
   let cancelWheelAnimation = ()=>{};
+  let toastTimer = null;
 
   const mqlReducedMotion = globalScope.matchMedia ? globalScope.matchMedia('(prefers-reduced-motion: reduce)') : null;
   let REDUCED_MOTION = !!(mqlReducedMotion && mqlReducedMotion.matches);
@@ -117,8 +123,7 @@
     }
   }
 
-  /** ===== 玻璃态 + 透明度优化样式（更透、更克制） ===== */
-  // 所有视觉样式集中在一处，方便微调颜色、透明度或布局。
+  /** ===== 玻璃态 + 透明度优化样式 ===== */
   GM_addStyle(`
     #ab-dock {
       position: fixed; left: 12px; bottom: 12px; z-index: 2147483647;
@@ -131,7 +136,6 @@
       --ab-target-width: calc(4 * 168px + 3 * var(--gap) + 24px + ${WIDTH_EXTRA_PX}px);
       --fsName: 9.5px; --fsVal: 12.5px; --fsSub: 9.5px;
 
-      /* ↓↓↓ 更低存在感的玻璃态（降低 blur / saturate / 亮度） ↓↓↓ */
       --bg: rgba(12,14,18,0.26);
       --bg2: rgba(12,14,18,0.12);
       --card: rgba(18,21,28,0.28);
@@ -140,14 +144,12 @@
       --soft: rgba(255,255,255,0.08);
       --shadow: 0 12px 30px rgba(0,0,0,0.2);
 
-      /* ↓↓↓ 低饱和柔和绿/红（P&L + 状态点 + 闪烁） ↓↓↓ */
       --green: rgb(204,255,216);
       --red:   rgb(255,215,213);
       --blue:  #60a5fa;
       --text:  #e6e8ee;
     }
 
-    /* 展开按钮：更透、轻玻璃 */
     #ab-toggle {
       pointer-events: auto;
       display: inline-flex;
@@ -166,9 +168,6 @@
     }
     #ab-toggle:hover { background: rgba(22,25,34,0.32); border-color: rgba(255,255,255,0.16); transform: translateY(-1px); }
 
-
-
-    /* 面板主体：更透、少 blur、少 saturate */
     #ab-wrap {
       pointer-events: auto;
       display: none;
@@ -265,7 +264,6 @@
       transform: rotate(180deg);
     }
 
-    /* 横向一行 + 滚动 */
     #ab-row-viewport {
       position: relative;
       overflow-x: auto;
@@ -340,16 +338,15 @@
     .ab-val  { font-size: var(--fsVal);  color:#f9fbff; font-weight:700; letter-spacing:.26px; font-variant-numeric: tabular-nums; text-shadow: 0 0 6px rgba(0,0,0,0.28); }
     .ab-sub  { font-size: var(--fsSub);  color:#a4afc0; font-variant-numeric: tabular-nums; letter-spacing:.18px; }
 
-    /* ↓ P&L 低饱和绿/红 */
     .ab-sub .pos { color: color-mix(in srgb, var(--green) 82%, #d1fae5); }
     .ab-sub .neg { color: color-mix(in srgb, var(--red) 82%,   #fee2e2); }
 
-    /* 涨跌闪烁（进一步降低透明度与冲击感） */
     @media (prefers-reduced-motion: no-preference) {
       .flash-up   { --flash-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--green) 18%, transparent); }
       .flash-down { --flash-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--red)   18%, transparent); }
     }
 
+    /* 次面板：展示模型账户 */
     #ab-feature-cards {
       display: none;
       flex-wrap: wrap;
@@ -368,7 +365,6 @@
       pointer-events: auto;
     }
 
-    /* 骨架占位 */
     .skeleton {
       background: linear-gradient(90deg, rgba(255,255,255,0.05) 25%, rgba(255,255,255,0.12) 45%, rgba(255,255,255,0.05) 65%);
       background-size: 400% 100%;
@@ -380,7 +376,6 @@
       100% { background-position: -100% 0; }
     }
 
-    /* Toast */
     #ab-toast {
       position: absolute; left: 8px; bottom: 100%; margin-bottom: 8px;
       background: rgba(0,0,0,0.78); color:#fff; padding:6px 8px; border-radius:8px;
@@ -391,7 +386,6 @@
   `);
 
   /** ===== DOM ===== */
-  // 创建挂载点与初始骨架，配合 toggle/title 控制展示状态。
   const dock = document.createElement('div');
   dock.id = 'ab-dock';
   dock.innerHTML = `
@@ -452,11 +446,11 @@
 
   const wrap       = dock.querySelector('#ab-wrap');
   const viewport   = dock.querySelector('#ab-row-viewport');
-  const row        = dock.querySelector('#ab-row');
+  const row        = dock.querySelector('#ab-row'); // 主面板：行情卡片
   const toggle     = dock.querySelector('#ab-toggle');
   const title      = dock.querySelector('#ab-title');
   const expandBtn  = dock.querySelector('#ab-expand-btn');
-  const featureCardsContainer = dock.querySelector('#ab-feature-cards');
+  const featureCardsContainer = dock.querySelector('#ab-feature-cards'); // 次面板：模型账户
   const dot        = dock.querySelector('#ab-dot');
   const toggleDot  = dock.querySelector('#ab-toggle-dot');
   const timeEl     = dock.querySelector('#ab-time');
@@ -468,26 +462,27 @@
   const featureLastValueMap = new Map();
   const featureMetaByKey = new Map();
 
+  // 主面板：行情卡片
   FEATURE_CARDS.forEach((item) => {
-      const card = document.createElement('div');
-      card.className = 'ab-card ab-feature-card';
-      card.setAttribute('data-key', item.key);
-      card.innerHTML = `
-        <div class="ab-icon" aria-hidden="true">${item.badge}</div>
-        <div class="ab-body">
-          <div class="ab-head">
-            <div class="ab-name" title="${item.name}">${item.name}</div>
-            <div class="ab-time">等待数据</div>
-          </div>
-          <div class="ab-val"><span class="skeleton" style="width:120px;"></span></div>
-          <div class="ab-sub">${item.source || ''}</div>
+    const card = document.createElement('div');
+    card.className = 'ab-card ab-feature-card';
+    card.setAttribute('data-key', item.key);
+    card.innerHTML = `
+      <div class="ab-icon" aria-hidden="true">${item.badge}</div>
+      <div class="ab-body">
+        <div class="ab-head">
+          <div class="ab-name" title="${item.name}">${item.name}</div>
+          <div class="ab-time">等待数据</div>
         </div>
-      `;
-      row.appendChild(card);
-      featureCardsByKey.set(item.key, card);
-      featureTimeDisplays.set(item.key, card.querySelector('.ab-time'));
-      featureState.set(item.key, { price: null, change: null, percent: null, ts: 0 });
-      featureMetaByKey.set(item.key, item);
+        <div class="ab-val"><span class="skeleton" style="width:120px;"></span></div>
+        <div class="ab-sub">${item.source || ''}</div>
+      </div>
+    `;
+    row.appendChild(card);
+    featureCardsByKey.set(item.key, card);
+    featureTimeDisplays.set(item.key, card.querySelector('.ab-time'));
+    featureState.set(item.key, { price: null, change: null, percent: null, ts: 0 });
+    featureMetaByKey.set(item.key, item);
   });
 
   // 展开/收起（默认最小化）
@@ -516,7 +511,13 @@
     }
   }
   function minimize(){ COLLAPSED = true;  applyCollapseState(); }
-  function expand()  { COLLAPSED = false; applyCollapseState(); scheduleWidthSync(); }
+  function expand()  {
+    COLLAPSED = false;
+    applyCollapseState();
+    scheduleWidthSync();
+    triggerFeatureRefreshNow();
+  }
+
   let FEATURE_EXPANDED = false;
   function setFeatureState(next){
     const nextExpanded = !!next;
@@ -546,7 +547,7 @@
       featureCardsContainer.setAttribute('aria-hidden', FEATURE_EXPANDED ? 'false' : 'true');
     }
     if (FEATURE_EXPANDED) {
-      featurePollers.forEach((rec)=>{
+      pollers.forEach((rec)=>{
         if (!rec?.run) return;
         clearTimeout(rec.timer);
         rec.timer = setTimeout(rec.run, 0);
@@ -554,6 +555,7 @@
     }
   }
   function toggleFeature(){ setFeatureState(!FEATURE_EXPANDED); }
+
   function attachPressHandlers(el, handler){
     el.addEventListener('click', handler);
     const tagName = (el.tagName || '').toLowerCase();
@@ -613,7 +615,6 @@
       + viewportPadL + viewportPadR;
 
     const contentWidth = baseWidth + WIDTH_EXTRA_PX;
-
     const maxWidthPx = Math.min(window.innerWidth * 0.96, contentWidth);
     if (Math.abs(maxWidthPx - lastWidthApplied) < 0.5) return;
     lastWidthApplied = maxWidthPx;
@@ -713,16 +714,17 @@
     ev.preventDefault();
   }
 
-  /** ===== 状态与卡片 ===== */
+  /** ===== 状态与模型卡片 ===== */
   const state = new Map();              // key -> { value, addr, addrCanon, ts }
   const cardsByKey = new Map();         // key -> card DOM 节点
   const timeDisplays = new Map();       // key -> 时间显示 DOM
-  let   lastOrder = MODELS.map(m=>m.key); // 保留历史顺序以便未来做最小化动画
+  let   lastOrder = MODELS.map(m=>m.key);
   let   lastGlobalSuccess = 0;
   let   seenAnySuccess = false;
-  const lastValueMap = new Map();       // 涨跌闪烁使用
+  const lastValueMap = new Map();
   const addrSubscribers = new Map();    // canon addr -> Set<modelKey>
 
+  // 次面板：模型账户卡片
   MODELS.forEach((m) => {
     const card = document.createElement('div');
     card.className = 'ab-card';
@@ -741,7 +743,6 @@
     featureCardsContainer.appendChild(card);
     cardsByKey.set(m.key, card);
 
-    // 初始状态：为每张卡片记住地址和时间显示节点
     const addr = ADDRRSafe(ADDRS[m.key]);
     const canon = canonAddress(addr);
     state.set(m.key, { value: null, addr, addrCanon: canon, ts: 0 });
@@ -752,15 +753,16 @@
       addrSubscribers.get(canon).add(m.key);
     }
 
-    // 复制地址
     card.querySelector('.ab-icon').addEventListener('click', async ()=>{
-      const addr = state.get(m.key).addr;
-      if (!addr) { showToast('未配置地址'); return; }
+      const current = state.get(m.key)?.addr;
+      if (!current) { showToast('未配置地址'); return; }
       try {
-        if (typeof GM_setClipboard === 'function') GM_setClipboard(addr);
-        else await navigator.clipboard.writeText(addr);
+        if (typeof GM_setClipboard === 'function') GM_setClipboard(current);
+        else await navigator.clipboard.writeText(current);
         showToast('地址已复制');
-      } catch { showToast('复制失败'); }
+      } catch {
+        showToast('复制失败');
+      }
     });
   });
 
@@ -812,23 +814,20 @@
     });
   }
 
-  /**
-   * 以 GM_xmlhttpRequest POST JSON，统一处理超时/异常。
-   * @param {string} url
-   * @param {object} data
-   * @returns {Promise<any>}
-   */
   function gmPostJson(url, data) {
     return new Promise((resolve, reject) => {
       GM_xmlhttpRequest({
-        method: 'POST', url, data: JSON.stringify(data),
+        method: 'POST',
+        url,
+        data: JSON.stringify(data),
         headers: { 'Content-Type': 'application/json' },
         timeout: 10000,
         onload: (res) => {
           try { resolve(JSON.parse(res.responseText)); }
           catch (e) { reject(e); }
         },
-        onerror: reject, ontimeout: reject
+        onerror: reject,
+        ontimeout: reject
       });
     });
   }
@@ -836,32 +835,33 @@
   function gmGetJson(url) {
     return new Promise((resolve, reject) => {
       GM_xmlhttpRequest({
-        method: 'GET', url,
+        method: 'GET',
+        url,
         timeout: 10000,
         onload: (res) => {
           try { resolve(JSON.parse(res.responseText)); }
           catch (e) { reject(e); }
         },
-        onerror: reject, ontimeout: reject
+        onerror: reject,
+        ontimeout: reject
       });
     });
   }
 
-  /**
-   * 拉取地址的账户价值，优先读取逐仓/全仓字段，异常时返回 null。
-   * @param {string} address
-   * @returns {Promise<number|null>}
-   */
   async function fetchAccountValue(address) {
     if (!address || !/^0x[a-fA-F0-9]{40}$/i.test(address)) return null;
     try {
       const resp = await gmPostJson('https://api.hyperliquid.xyz/info', {
-        type: 'clearinghouseState', user: address, dex: ''
+        type: 'clearinghouseState',
+        user: address,
+        dex: ''
       });
       const v = resp?.marginSummary?.accountValue || resp?.crossMarginSummary?.accountValue;
       const num = v ? parseFloat(v) : NaN;
       return Number.isFinite(num) ? num : null;
-    } catch { return null; }
+    } catch {
+      return null;
+    }
   }
 
   async function fetchPerpTicker(symbol){
@@ -880,7 +880,9 @@
         percent: Number.isFinite(percent) ? percent / 100 : null,
         ts: Date.now(),
       };
-    } catch { return null; }
+    } catch {
+      return null;
+    }
   }
 
   async function fetchBtcPerpTicker(){
@@ -960,7 +962,9 @@
       } else if (!current.token || !token || current.token === token) {
         storage.removeItem(key);
       }
-    } catch { storage?.removeItem?.(key); }
+    } catch {
+      storage?.removeItem?.(key);
+    }
     heldLocks.delete(key);
   }
 
@@ -968,7 +972,9 @@
     if (!STORAGE_OK || !canon) return null;
     try {
       return safeParseJSON(storage.getItem(CACHE_PREFIX + canon));
-    } catch { return null; }
+    } catch {
+      return null;
+    }
   }
 
   function writeCache(canon, payload){
@@ -993,11 +999,11 @@
     if (prev && prev.ts >= payload.ts) return;
     sharedResultCache.set(canon, payload);
 
-      if (payload.success) {
-        seenAnySuccess = true;
-        lastGlobalSuccess = Math.max(lastGlobalSuccess, payload.ts);
-        if (!isTabForeground()) return;
-        const keys = addrSubscribers.get(canon);
+    if (payload.success) {
+      seenAnySuccess = true;
+      lastGlobalSuccess = Math.max(lastGlobalSuccess, payload.ts);
+      if (!isTabForeground()) return;
+      const keys = addrSubscribers.get(canon);
       if (keys) {
         keys.forEach(key=>{
           if (state.has(key)) updateCard(key, payload.value, payload.ts);
@@ -1010,10 +1016,6 @@
   /** ===== 按模型独立轮询 + 失败退避 ===== */
   const pollers = new Map(); // key -> { step, timer, run }
 
-  /**
-   * 为指定模型启动独立轮询：成功时重置退避，失败时升级退避。
-   * @param {string} mkey
-   */
   function startPoller(mkey){
     const rec = { step: 0, timer: null };
     pollers.set(mkey, rec);
@@ -1029,7 +1031,6 @@
       const canon = s.addrCanon || canonAddress(addr);
       if (!s.addrCanon) s.addrCanon = canon;
 
-      // 无地址时：视为“不可用”，降频到最高 12s
       if (!addr) {
         updateCard(mkey, null);
         rec.step = BACKOFF_STEPS.length - 1;
@@ -1082,14 +1083,26 @@
     }
 
     rec.run = run;
-
     scheduleNext();
   }
 
-  // 为所有模型启动独立轮询
   MODELS.forEach(m => startPoller(m.key));
 
+  /** ===== 主面板行情轮询 ===== */
   const featurePollers = new Map();
+
+  function getFeatureRefreshDelay(){
+    if (!isTabForeground()) return BACKGROUND_WAIT_MS;
+    return COLLAPSED ? FEATURE_COLLAPSED_REFRESH_MS : FEATURE_REFRESH_MS;
+  }
+
+  function triggerFeatureRefreshNow(){
+    featurePollers.forEach((rec)=>{
+      if (!rec?.run) return;
+      clearTimeout(rec.timer);
+      rec.timer = setTimeout(rec.run, 0);
+    });
+  }
 
   function startFeatureTickerPollers(){
     FEATURE_CARDS.forEach((card)=>{
@@ -1101,7 +1114,7 @@
 
       const run = async ()=>{
         if (!isTabForeground()) {
-          scheduleNext(BACKGROUND_WAIT_MS);
+          scheduleNext();
           return;
         }
         try {
@@ -1122,11 +1135,10 @@
 
       const scheduleNext = ()=>{
         clearTimeout(rec.timer);
-        rec.timer = setTimeout(run, FEATURE_REFRESH_MS);
+        rec.timer = setTimeout(run, getFeatureRefreshDelay());
       };
 
       rec.run = run;
-
       run();
     });
   }
@@ -1134,26 +1146,14 @@
   startFeatureTickerPollers();
 
   /** ===== 渲染 ===== */
-  /**
-   * 更新单个模型卡片的文案、排序及动画效果。
-   * @param {string} mkey
-   * @param {number|null} value
-   */
   function updateCard(mkey, value, tsOverride){
     const s = state.get(mkey);
     s.value = value;
 
-    // 先记录旧位置信息（用于 FLIP 动画）
-    const firstRects = new Map();
-    MODELS.forEach(m=>{
-      const el = cardsByKey.get(m.key);
-      firstRects.set(m.key, el.getBoundingClientRect());
-    });
-
-    // 更新本卡展示
     const el = cardsByKey.get(mkey);
     const valEl = el.querySelector('.ab-val');
     const subEl = el.querySelector('.ab-sub');
+
     if (value == null) {
       valEl.innerHTML = '<span class="skeleton" style="width:120px;"></span>';
       subEl.textContent = s.addr ? '等待数据…' : '地址未配置';
@@ -1166,7 +1166,6 @@
       subEl.innerHTML = `PnL <span class="${pnl>=0?'pos':'neg'}">${fmtUSD(pnl)} · ${fmtPct(pct)}</span>`;
       s.ts = typeof tsOverride === 'number' ? tsOverride : Date.now();
 
-      // 涨跌闪烁（更柔和）
       if (typeof prev === 'number' && prev !== value) {
         el.classList.remove('flash-up','flash-down');
         void el.offsetWidth;
@@ -1176,42 +1175,52 @@
       lastValueMap.set(mkey, value);
     }
 
-    // 重排：按最新值排序（不显示名次，仅内部排序）
     const items = MODELS.map(m => ({ key: m.key, value: state.get(m.key).value }));
     items.sort((a,b)=>(b.value??-Infinity)-(a.value??-Infinity));
     const newOrder = items.map(i=>i.key);
 
-    const els = items.map(i=>cardsByKey.get(i.key));
-    const lastRects = new Map();
-    els.forEach(el=>{
-      const key = el.getAttribute('data-key');
-      lastRects.set(key, firstRects.get(key));
-    });
-    els.forEach((el)=> featureCardsContainer.appendChild(el));
+    // 次面板隐藏时：只重排 DOM，不做 FLIP，避免无意义布局动画
+    if (!FEATURE_EXPANDED) {
+      items.forEach(i => {
+        const node = cardsByKey.get(i.key);
+        featureCardsContainer.appendChild(node);
+      });
+      lastOrder = newOrder;
+      refreshCardTimes();
+      return;
+    }
 
-    els.forEach(el=>{
-      const key = el.getAttribute('data-key');
-      const first = lastRects.get(key);
-      const last  = el.getBoundingClientRect();
+    const firstRects = new Map();
+    MODELS.forEach(m=>{
+      const node = cardsByKey.get(m.key);
+      firstRects.set(m.key, node.getBoundingClientRect());
+    });
+
+    const els = items.map(i=>cardsByKey.get(i.key));
+    els.forEach((node)=> featureCardsContainer.appendChild(node));
+
+    els.forEach(node=>{
+      const key = node.getAttribute('data-key');
+      const first = firstRects.get(key);
+      const last  = node.getBoundingClientRect();
       if (first) {
         const dx = first.left - last.left;
         const dy = first.top  - last.top;
         if (dx || dy) {
-          el.style.transition = 'none';
-          el.style.setProperty('--flip-translate-x', `${dx}px`);
-          el.style.setProperty('--flip-translate-y', `${dy}px`);
-          el.getBoundingClientRect();
-          el.style.transition = 'transform 240ms ease';
-          el.style.setProperty('--flip-translate-x', '0px');
-          el.style.setProperty('--flip-translate-y', '0px');
-          el.addEventListener('transitionend', ()=>{ el.style.transition=''; }, { once:true });
+          node.style.transition = 'none';
+          node.style.setProperty('--flip-translate-x', `${dx}px`);
+          node.style.setProperty('--flip-translate-y', `${dy}px`);
+          node.getBoundingClientRect();
+          node.style.transition = 'transform 240ms ease';
+          node.style.setProperty('--flip-translate-x', '0px');
+          node.style.setProperty('--flip-translate-y', '0px');
+          node.addEventListener('transitionend', ()=>{ node.style.transition=''; }, { once:true });
         }
       }
     });
 
     lastOrder = newOrder;
     refreshCardTimes();
-    scheduleWidthSync();
   }
 
   function updateFeatureCard(key, payload, errored){
@@ -1268,12 +1277,10 @@
     s.percent = percent;
     s.ts = nowTs;
     refreshCardTimes();
+    scheduleWidthSync();
   }
 
-  /** ===== 顶栏状态：Live / Stale / Dead ===== */
-  /**
-   * 刷新顶栏状态点及文字，反映最新网络健康情况。
-   */
+  /** ===== 顶栏状态 ===== */
   function updateStatus(){
     const now = Date.now();
     if (!seenAnySuccess) {
@@ -1286,11 +1293,9 @@
     const statusClass = stale ? 'ab-warn' : 'ab-live';
     dot.className = 'ab-dot ' + statusClass;
     if (toggleDot) toggleDot.className = 'ab-dot ' + statusClass;
-    timeEl.textContent = (stale ? 'Stale' : ('更新 ' + fmtTime(now)));
+    timeEl.textContent = stale ? 'Stale' : ('更新 ' + fmtTime(now));
   }
-  /**
-   * 刷新卡片上的相对时间显示。
-   */
+
   function refreshCardTimes(){
     const now = Date.now();
     timeDisplays.forEach((el, key)=>{
@@ -1308,7 +1313,7 @@
       el.textContent = fmtSince(s.ts, now);
     });
   }
-  // 轻量 UI 刷新：仅更新文本与状态点，不追加网络请求
+
   setInterval(()=>{
     if (!isTabForeground()) return;
     updateStatus();
@@ -1325,12 +1330,7 @@
       clearTimeout(rec.timer);
       rec.timer = setTimeout(rec.run, 0);
     });
-    if (FEATURE_EXPANDED) {
-      featurePollers.forEach((rec)=>{
-        clearTimeout(rec.timer);
-        rec.timer = setTimeout(rec.run, 0);
-      });
-    }
+    triggerFeatureRefreshNow();
     updateStatus();
     refreshCardTimes();
   });
@@ -1340,24 +1340,26 @@
   }
 
   /** ===== 工具函数 ===== */
-  function canonAddress(addr){ return typeof addr === 'string' ? addr.trim().toLowerCase() : ''; }
-  function safeParseJSON(str){ try { return str ? JSON.parse(str) : null; } catch { return null; } }
-  /** 清洗地址字符串，避免 undefined/null */
-  function ADDRRSafe(addr) { return typeof addr === 'string' ? addr.trim() : ''; }
-  /** 统一格式化 USD 文案 */
-  function fmtUSD(n){ return n==null ? '—' : '$' + n.toLocaleString(undefined,{maximumFractionDigits:2}); }
+  function canonAddress(addr){
+    return typeof addr === 'string' ? addr.trim().toLowerCase() : '';
+  }
+  function safeParseJSON(str){
+    try { return str ? JSON.parse(str) : null; } catch { return null; }
+  }
+  function ADDRRSafe(addr) {
+    return typeof addr === 'string' ? addr.trim() : '';
+  }
+  function fmtUSD(n){
+    return n==null ? '—' : '$' + n.toLocaleString(undefined,{maximumFractionDigits:2});
+  }
   function fmtUSDWithSign(n){
     if (n == null) return '—';
     const absFmt = fmtUSD(Math.abs(n));
     return (n >= 0 ? '+' : '-') + absFmt.slice(1);
   }
-  /** 输出带正负号的百分比 */
-  function fmtPct(n){ return n==null ? '—' : ((n>=0?'+':'') + (n*100).toFixed(2) + '%'); }
-  /**
-   * 根据时间戳生成中文相对时间。
-   * @param {number} ts
-   * @param {number} [now]
-   */
+  function fmtPct(n){
+    return n==null ? '—' : ((n>=0?'+':'') + (n*100).toFixed(2) + '%');
+  }
   function fmtSince(ts, now = Date.now()){
     const diff = Math.max(0, now - ts);
     if (diff < 5000) return '刚刚';
@@ -1366,19 +1368,18 @@
     if (diff < 86400000) return Math.floor(diff/3600000) + ' 小时前';
     return Math.floor(diff/86400000) + ' 天前';
   }
-  /** HH:MM:SS 形式的绝对时间 */
   function fmtTime(ts){
-    const d=new Date(ts); const p=n=>n<10?'0'+n:n;
+    const d=new Date(ts);
+    const p=n=>n<10?'0'+n:n;
     return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
   }
-  /**
-   * 统一的轻量提示气泡。
-   * @param {string} msg
-   */
   function showToast(msg){
     toast.textContent = msg;
     toast.classList.add('show');
-    clearTimeout(showToast._t);
-    showToast._t = setTimeout(()=>toast.classList.remove('show'), 1200);
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(()=>{
+      toast.classList.remove('show');
+      toastTimer = null;
+    }, 1200);
   }
 })();
