@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Alpha Board（链上盈利数据展示/底部横排暂时/可隐藏/柔和玻璃）
 // @namespace    https://greasyfork.org/zh-CN/users/1211909-amazing-fish
-// @version      1.5.2
+// @version      1.7.0
 // @description  链上实时账户看板 · 默认最小化 · 按模型独立退避 · 轻量玻璃态 UI · 低饱和 P&L · 横排 6 卡片并展示相对更新时间
 // @match        *://*/*
 // @grant        GM_xmlhttpRequest
@@ -9,6 +9,7 @@
 // @grant        GM_setClipboard
 // @connect      api.hyperliquid.xyz
 // @connect      fapi.binance.com
+// @connect      www.okx.com
 // @license      MIT
 // ==/UserScript==
 
@@ -26,9 +27,9 @@
   globalScope[INSTALL_FLAG] = true;
 
   /**
-   * Alpha Board 1.5.2
+   * Alpha Board 1.7.0
    * ------------------
-   *  - 主面板展示行情卡片（BTC / XAU / AXS）
+   *  - 主面板展示行情卡片（BTC / XAU / OPENAI）
    *  - 次面板展示多模型链上账户价值
    *  - Hyperliquid 地址轮询：独立退避 + 共享缓存/锁 + 无本地配置持久化
    *  - 行情轮询：折叠态降频，展开主面板后立即刷新
@@ -73,21 +74,21 @@
       badge: 'BTC',
       name: 'BTCUSDT · 永续',
       source: '数据源 Binance Futures',
-      fetcher: fetchBtcPerpTicker,
+      fetcher: ()=>fetchPerpTicker({ source: 'binance', symbol: 'BTCUSDT' }),
     },
     {
       key: 'xau',
       badge: 'XAU',
       name: 'XAUUSDT · 永续',
       source: '数据源 Binance Futures',
-      fetcher: fetchXauPerpTicker,
+      fetcher: ()=>fetchPerpTicker({ source: 'binance', symbol: 'XAUUSDT' }),
     },
     {
-      key: 'axs',
-      badge: 'AXS',
-      name: 'AXSUSDT · 永续',
-      source: '数据源 Binance Futures',
-      fetcher: fetchAxsPerpTicker,
+      key: 'openai',
+      badge: 'OAI',
+      name: 'OPENAIUSDT · 永续',
+      source: '数据源 OKX Swap',
+      fetcher: ()=>fetchPerpTicker({ source: 'okx', symbol: 'OPENAI-USDT-SWAP' }),
     },
   ];
 
@@ -864,8 +865,30 @@
     }
   }
 
-  async function fetchPerpTicker(symbol){
+  async function fetchPerpTicker({ source, symbol }){
     try {
+      if (source === 'okx') {
+        const resp = await gmGetJson(`https://www.okx.com/api/v5/market/ticker?instId=${encodeURIComponent(symbol)}`);
+        const item = Array.isArray(resp?.data) ? resp.data[0] : null;
+        const priceRaw = item?.last ?? item?.lastPx;
+        const changeRaw = item?.open24h != null && priceRaw != null
+          ? (parseFloat(priceRaw) - parseFloat(item.open24h)).toString()
+          : null;
+        const pctRaw = item?.sodUtc0 != null && priceRaw != null
+          ? (((parseFloat(priceRaw) - parseFloat(item.sodUtc0)) / parseFloat(item.sodUtc0)) * 100).toString()
+          : null;
+        const price = priceRaw == null ? NaN : parseFloat(priceRaw);
+        if (!Number.isFinite(price)) return null;
+        const change = changeRaw == null ? NaN : parseFloat(changeRaw);
+        const percent = pctRaw == null ? NaN : parseFloat(pctRaw);
+        return {
+          price,
+          change: Number.isFinite(change) ? change : null,
+          percent: Number.isFinite(percent) ? percent / 100 : null,
+          ts: Date.now(),
+        };
+      }
+
       const resp = await gmGetJson(`https://fapi.binance.com/fapi/v1/ticker/24hr?symbol=${encodeURIComponent(symbol)}`);
       const priceRaw = resp?.lastPrice ?? resp?.weightedAvgPrice ?? resp?.price;
       const changeRaw = resp?.priceChange;
@@ -883,18 +906,6 @@
     } catch {
       return null;
     }
-  }
-
-  async function fetchBtcPerpTicker(){
-    return fetchPerpTicker('BTCUSDT');
-  }
-
-  async function fetchXauPerpTicker(){
-    return fetchPerpTicker('XAUUSDT');
-  }
-
-  async function fetchAxsPerpTicker(){
-    return fetchPerpTicker('AXSUSDT');
   }
 
   function tryUseSharedResult(canon, rec){
