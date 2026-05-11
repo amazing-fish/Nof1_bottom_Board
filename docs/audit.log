@@ -1,4 +1,6 @@
 # 审计日志（倒序）
+- 2026-05-11 feature v1.6.0：为 FEATURE_CARDS 新增多交易所 source 分流能力；Binance 维持 BTC/XAU 永续，AXS 卡片切换为欧易 `AXS-USDT-SWAP`；涉及 `AlphaBoard.js`、`ANCHOR.md`、`docs/audit.log`；测试命令 `node --check AlphaBoard.js`，结论：通过。
+
 - 2026-02-10 bugfix v1.5.1：修复浏览器切回前台标签页时未自动折叠的问题；切回前台若处于展开态则自动最小化并同步收起次面板；涉及 `AlphaBoard.js`、`ANCHOR.md`、`docs/audit.log`；测试命令 `node --check AlphaBoard.js`，结论：通过。
 
 - 2026-02-10 feature v1.5.0：新增 `AXSUSDT` 永续行情卡；折叠态入口去掉“Alpha Board”标题并改为状态灯极简显示（与顶栏状态同步）；涉及 `AlphaBoard.js`、`ANCHOR.md`、`docs/audit.log`；测试命令 `node --check AlphaBoard.js`，结论：通过。
